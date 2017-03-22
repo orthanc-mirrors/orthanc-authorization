@@ -43,8 +43,6 @@ FILES = [
     'Resources/ThirdParty/VisualStudio/stdint.h',
     'Resources/ThirdParty/base64/base64.cpp',
     'Resources/ThirdParty/base64/base64.h',
-    'Resources/WindowsResources.py',
-    'Resources/WindowsResources.rc',
 ]
 
 SDK = [
