@@ -1,0 +1,48 @@
+Advanced authorization for Orthanc
+==================================
+
+
+General Information
+-------------------
+
+This repository contains the source code of an advanced authorization
+plugin for Orthanc.
+
+For each incoming REST request to some URI, the plugin will query a
+Web service to know whether the access is granted to the
+user. Authorization credentials can be retrieved either from a GET
+argument, or from a HTTP header.
+
+
+Installation and usage
+----------------------
+
+Build instructions are similar to that of Orthanc:
+https://orthanc.chu.ulg.ac.be/book/faq/compiling.html
+
+Usage details are available as part of the Orthanc Book:
+http://book.orthanc-server.com/plugins/authorization.html
+
+
+Licensing
+---------
+
+The authorization plugin for Orthanc is licensed under the AGPL license.
+
+We also kindly ask scientific works and clinical studies that make
+use of Orthanc to cite Orthanc in their associated publications.
+Similarly, we ask open-source and closed-source products that make
+use of Orthanc to warn us about this use. You can cite our work
+using the following BibTeX entry:
+
+@inproceedings{Jodogne:ISBI2013,
+  author = {Jodogne, S. and Bernard, C. and Devillers, M. and Lenaerts, E. and Coucke, P.},
+  title = {Orthanc -- {A} Lightweight, {REST}ful {DICOM} Server for Healthcare and Medical Research},
+  booktitle={Biomedical Imaging ({ISBI}), {IEEE} 10th International Symposium on}, 
+  year={2013}, 
+  pages={190-193}, 
+  ISSN={1945-7928},
+  month=apr,
+  url={http://ieeexplore.ieee.org/xpl/articleDetails.jsp?tp=&arnumber=6556444},
+  address={San Francisco, {CA}, {USA}}
+}
