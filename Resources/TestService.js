@@ -25,7 +25,7 @@ var server = http.createServer(function(request, response) {
     });
 
     request.on('end', function () {
-      console.log('Received authentication request: ' + body);
+      console.log('Received authorization request: ' + body);
       console.log('HTTP headers: ' + JSON.stringify(request.headers));
 
       var query = JSON.parse(body);
