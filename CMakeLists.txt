@@ -61,8 +61,6 @@ if (${CMAKE_SYSTEM_NAME} STREQUAL "Linux" OR
     ${CMAKE_SYSTEM_NAME} STREQUAL "FreeBSD")
   link_libraries(rt)
 elseif (${CMAKE_SYSTEM_NAME} STREQUAL "Windows")
-  SET(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES} -lws2_32")
-
   execute_process(
     COMMAND 
     ${PYTHON_EXECUTABLE} ${ORTHANC_ROOT}/Resources/WindowsResources.py
