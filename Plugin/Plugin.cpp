@@ -305,7 +305,7 @@ extern "C"
 
         configuration.LookupListOfStrings(tmp, "TokenGetArguments", true);
 
-#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)  
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 3, 0)  
         for (std::list<std::string>::const_iterator
                it = tmp.begin(); it != tmp.end(); ++it)
         {
@@ -315,7 +315,7 @@ extern "C"
         if (!tmp.empty())
         {
           LOG(ERROR) << "The option \"TokenGetArguments\" of the authorization plugin "
-                     << "is only valid if compiled against Orthanc >= 1.2.1";
+                     << "is only valid if compiled against Orthanc >= 1.3.0";
           throw Orthanc::OrthancException(Orthanc::ErrorCode_Plugin);
         }
 #endif
