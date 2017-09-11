@@ -76,18 +76,23 @@ namespace OrthancPlugins
     uint16_t httpStatus = 0;
 
     uint32_t headersCount = 0;
-    const char* headersKeys[1];
-    const char* headersValues[1];
+    const char* headersKeys[2];
+    const char* headersValues[2];
       
     if (token != NULL &&
         token->GetType() == TokenType_HttpHeader)
     {
       // If the token source is a HTTP header, forward it also as a
       // HTTP header
-      headersCount = 1;
-      headersKeys[0] = token->GetKey().c_str();
-      headersValues[0] = tokenValue.c_str();
+      headersKeys[headersCount] = token->GetKey().c_str();
+      headersValues[headersCount] = tokenValue.c_str();
+      headersCount++;
     }
+
+    // set the correct content type for the outgoing
+    headersKeys[headersCount] = "Content-Type";
+    headersValues[headersCount] = "application/json";
+    headersCount++;
 
     std::string flatBody = body.toStyledString();
       
