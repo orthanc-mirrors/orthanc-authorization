@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(OrthancAuthorization)
 
-set(ORTHANC_AUTHORIZATION_VERSION "0.2.0")
+set(ORTHANC_AUTHORIZATION_VERSION "mainline")
 
 # Parameters of the build
 set(STATIC_BUILD OFF CACHE BOOL "Static build of the third-party libraries (necessary for Windows)")
