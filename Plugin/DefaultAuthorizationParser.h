@@ -36,6 +36,10 @@ namespace OrthancPlugins
     boost::regex dicomWebSeries_;
     boost::regex dicomWebInstances_;
 
+    boost::regex osimisViewerSeries_;
+    boost::regex osimisViewerImages_;
+    boost::regex osimisViewerStudies_;
+
   public:
     DefaultAuthorizationParser(OrthancPluginContext* context,
                                ICacheFactory& factory,

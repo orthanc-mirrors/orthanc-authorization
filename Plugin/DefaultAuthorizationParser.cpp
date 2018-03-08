@@ -28,7 +28,10 @@ namespace OrthancPlugins
     AuthorizationParserBase(context, factory),
     resourcesPattern_("^/(patients|studies|series|instances)/([a-f0-9-]+)(|/.*)$"),
     seriesPattern_("^/(web-viewer/series|web-viewer/is-stable-series|wsi/pyramids|wsi/tiles)/([a-f0-9-]+)(|/.*)$"),
-    instancesPattern_("^/web-viewer/instances/[a-z0-9]+-([a-f0-9-]+)_[0-9]+$")
+    instancesPattern_("^/web-viewer/instances/[a-z0-9]+-([a-f0-9-]+)_[0-9]+$"),
+    osimisViewerSeries_("^/osimis-viewer/series/([a-f0-9-]+)(|/.*)$"),
+    osimisViewerImages_("^/osimis-viewer/images/([a-f0-9-]+)(|/.*)$"),
+    osimisViewerStudies_("^/osimis-viewer/studies/([a-f0-9-]+)(|/.*)$")
   {
     std::string tmp = dicomWebRoot;
     while (!tmp.empty() &&
@@ -108,6 +111,21 @@ namespace OrthancPlugins
     else if (boost::regex_match(uri, what, dicomWebInstances_))
     {
       AddDicomInstance(target, what[1], what[2], what[3]);
+      return true;
+    }
+    else if (boost::regex_match(uri, what, osimisViewerSeries_))
+    {
+      AddOrthancSeries(target, what[1]);
+      return true;
+    }
+    else if (boost::regex_match(uri, what, osimisViewerStudies_))
+    {
+      AddOrthancStudy(target, what[1]);
+      return true;
+    }
+    else if (boost::regex_match(uri, what, osimisViewerImages_))
+    {
+      AddOrthancInstance(target, what[1]);
       return true;
     }
     else
