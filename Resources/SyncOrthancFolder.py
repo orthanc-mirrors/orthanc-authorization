@@ -11,7 +11,7 @@ import stat
 import urllib2
 
 TARGET = os.path.join(os.path.dirname(__file__), 'Orthanc')
-PLUGIN_SDK_VERSION = '1.1.0'  # TODO Switch to 1.2.1 when available
+PLUGIN_SDK_VERSION = '1.3.1'  # TODO Switch to 1.2.1 when available
 REPOSITORY = 'https://bitbucket.org/sjodogne/orthanc/raw'
 
 FILES = [
