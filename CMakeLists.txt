@@ -44,7 +44,6 @@ set(USE_SYSTEM_ORTHANC_SDK ON CACHE BOOL "Use the system version of the Orthanc 
 include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/DownloadOrthancFramework.cmake)
 
 set(ORTHANC_FRAMEWORK_PLUGIN ON)
-set(ORTHANC_DISABLE_PATCH ON)    # No need for the "patch" command-line tool
 include(${ORTHANC_ROOT}/Resources/CMake/OrthancFrameworkParameters.cmake)
 
 set(ENABLE_LOCALE OFF)           # Disable support for locales (notably in Boost)
