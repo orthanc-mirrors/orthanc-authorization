@@ -18,7 +18,7 @@
 
 #include "AuthorizationParserBase.h"
 
-#include "../Resources/Orthanc/Core/OrthancException.h"
+#include <Core/OrthancException.h>
 
 namespace OrthancPlugins
 {

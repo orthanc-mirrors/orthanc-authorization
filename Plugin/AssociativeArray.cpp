@@ -18,7 +18,7 @@
 
 #include "AssociativeArray.h"
 
-#include "../Resources/Orthanc/Core/Toolbox.h"
+#include <Core/Toolbox.h>
 
 namespace OrthancPlugins
 {

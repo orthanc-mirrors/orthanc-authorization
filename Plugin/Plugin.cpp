@@ -22,9 +22,9 @@
 #include "AuthorizationWebService.h"
 #include "MemoryCache.h"
 
-#include "../Resources/Orthanc/Plugins/Samples/Common/OrthancPluginCppWrapper.h"
-#include "../Resources/Orthanc/Core/Logging.h"
-#include "../Resources/Orthanc/Core/Toolbox.h"
+#include <Plugins/Samples/Common/OrthancPluginCppWrapper.h>
+#include <Core/Logging.h>
+#include <Core/Toolbox.h>
 
 static OrthancPluginContext* context_ = NULL;
 
@@ -384,6 +384,6 @@ extern "C"
 
   ORTHANC_PLUGINS_API const char* OrthancPluginGetVersion()
   {
-    return ORTHANC_AUTHORIZATION_VERSION;
+    return ORTHANC_PLUGIN_VERSION;
   }
 }

@@ -18,7 +18,7 @@
 
 #include "CachedAuthorizationService.h"
 
-#include "../Resources/Orthanc/Core/OrthancException.h"
+#include <Core/OrthancException.h>
 
 #include <boost/lexical_cast.hpp>
 

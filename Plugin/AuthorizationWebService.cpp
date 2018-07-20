@@ -18,8 +18,8 @@
 
 #include "AuthorizationWebService.h"
 
-#include "../Resources/Orthanc/Core/Logging.h"
-#include "../Resources/Orthanc/Plugins/Samples/Common/OrthancPluginCppWrapper.h"
+#include <Core/Logging.h>
+#include <Plugins/Samples/Common/OrthancPluginCppWrapper.h>
 
 namespace OrthancPlugins
 {
