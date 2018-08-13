@@ -1,9 +1,16 @@
 Pending changes in the mainline
 ===============================
 
-* Added automated build
+2018-08-13 - v 0.2.3
+====================
+
 * Compatibility with Linux Standard Base
 * Now using the Orthanc framework
+
+2018-07-19 - v 0.2.2
+====================
+
+* Added automated build
 
 2018-03-09 - v 0.2.1
 ====================
