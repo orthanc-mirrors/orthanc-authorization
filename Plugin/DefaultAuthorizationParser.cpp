@@ -30,7 +30,7 @@ namespace OrthancPlugins
     seriesPattern_("^/(web-viewer/series|web-viewer/is-stable-series|wsi/pyramids|wsi/tiles)/([a-f0-9-]+)(|/.*)$"),
     instancesPattern_("^/web-viewer/instances/[a-z0-9]+-([a-f0-9-]+)_[0-9]+$"),
     osimisViewerSeries_("^/osimis-viewer/series/([a-f0-9-]+)(|/.*)$"),
-    osimisViewerImages_("^/osimis-viewer/images/([a-f0-9-]+)(|/.*)$"),
+    osimisViewerImages_("^/osimis-viewer/(images|custom-command)/([a-f0-9-]+)(|/.*)$"),
     osimisViewerStudies_("^/osimis-viewer/studies/([a-f0-9-]+)(|/.*)$")
   {
     std::string tmp = dicomWebRoot;
