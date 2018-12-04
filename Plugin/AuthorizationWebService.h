@@ -25,7 +25,6 @@ namespace OrthancPlugins
   class AuthorizationWebService : public IAuthorizationService
   {
   private:
-    OrthancPluginContext* context_;
     std::string url_;
     std::string username_;
     std::string password_;
@@ -37,8 +36,10 @@ namespace OrthancPlugins
                            const std::string& tokenValue);
     
   public:
-    AuthorizationWebService(OrthancPluginContext* context,
-                            const std::string& url);
+    AuthorizationWebService(const std::string& url) :
+      url_(url)
+    {
+    }
 
     void SetCredentials(const std::string& username,
                         const std::string& password);

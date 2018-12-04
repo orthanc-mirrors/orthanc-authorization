@@ -60,7 +60,7 @@ namespace OrthancPlugins
     OrthancResource parent;
     std::list<OrthancResource> children;
 
-    if (!resource.GetHierarchy(dicomUid, parent, children, context_))
+    if (!resource.GetHierarchy(dicomUid, parent, children))
     {
       // The resource is non-existing (*)
       return false;
@@ -92,9 +92,7 @@ namespace OrthancPlugins
   }
 
 
-  ResourceHierarchyCache::ResourceHierarchyCache(OrthancPluginContext* context,
-                                                 ICacheFactory& factory) :
-    context_(context),
+  ResourceHierarchyCache::ResourceHierarchyCache(ICacheFactory& factory) :
     cache_(factory.Create()),
     orthancToDicom_(factory.Create()),
     dicomToOrthanc_(factory.Create())
@@ -162,7 +160,7 @@ namespace OrthancPlugins
 
     OrthancResource resource(level, orthancId);
 
-    if (resource.GetDicomUid(target, context_))
+    if (resource.GetDicomUid(target))
     {
       orthancToDicom_->Store(key, target, 0 /* no expiration */);
       return true;
@@ -187,7 +185,7 @@ namespace OrthancPlugins
 
     OrthancResource resource(level, dicomUid);
 
-    if (OrthancResource::LookupOrthancId(target, context_, level, dicomUid))
+    if (OrthancResource::LookupOrthancId(target, level, dicomUid))
     {
       dicomToOrthanc_->Store(key, target, 0 /* no expiration */);
       return true;

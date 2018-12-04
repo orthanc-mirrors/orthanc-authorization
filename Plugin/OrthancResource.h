@@ -60,19 +60,15 @@ namespace OrthancPlugins
 
     const std::string& GetIdentifier() const;
 
-    bool GetContent(Json::Value& content,
-                    OrthancPluginContext* context) const;
+    bool GetContent(Json::Value& content) const;
 
-    bool GetDicomUid(std::string& dicomUid /* out */,
-                     OrthancPluginContext* context) const;
+    bool GetDicomUid(std::string& dicomUid /* out */) const;
     
     bool GetHierarchy(std::string& dicomUid /* out */,
                       OrthancResource& parent /* out */,
-                      std::list<OrthancResource>& children /* out */,
-                      OrthancPluginContext* context) const;
+                      std::list<OrthancResource>& children /* out */) const;
 
     static bool LookupOrthancId(std::string& result,
-                                OrthancPluginContext* context,
                                 Orthanc::ResourceType level,
                                 const std::string& dicomUid);
   };

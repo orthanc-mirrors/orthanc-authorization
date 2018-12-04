@@ -26,8 +26,6 @@
 #include <Core/Logging.h>
 #include <Core/Toolbox.h>
 
-static OrthancPluginContext* context_ = NULL;
-
 
 // Configuration of the authorization plugin
 static std::auto_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
@@ -246,25 +244,24 @@ extern "C"
 {
   ORTHANC_PLUGINS_API int32_t OrthancPluginInitialize(OrthancPluginContext* context)
   {
-    context_ = context;
-    OrthancPluginLogWarning(context_, "Initializing the authorization plugin");
+    OrthancPlugins::SetGlobalContext(context);
+    OrthancPluginLogWarning(context, "Initializing the authorization plugin");
 
     /* Check the version of the Orthanc core */
-    if (OrthancPluginCheckVersion(context_) == 0)
+    if (OrthancPluginCheckVersion(context) == 0)
     {
-      OrthancPlugins::ReportMinimalOrthancVersion(context_, 
-                                                  ORTHANC_PLUGINS_MINIMAL_MAJOR_NUMBER,
+      OrthancPlugins::ReportMinimalOrthancVersion(ORTHANC_PLUGINS_MINIMAL_MAJOR_NUMBER,
                                                   ORTHANC_PLUGINS_MINIMAL_MINOR_NUMBER,
                                                   ORTHANC_PLUGINS_MINIMAL_REVISION_NUMBER);
       return -1;
     }
 
-    Orthanc::Logging::Initialize(context_);
-    OrthancPluginSetDescription(context_, "Advanced authorization plugin for Orthanc.");
+    Orthanc::Logging::Initialize(context);
+    OrthancPluginSetDescription(context, "Advanced authorization plugin for Orthanc.");
 
     try
     {
-      OrthancPlugins::OrthancConfiguration general(context_);
+      OrthancPlugins::OrthancConfiguration general;
 
       static const char* SECTION = "Authorization";
       if (general.IsSection(SECTION))
@@ -291,7 +288,7 @@ extern "C"
           } 
 
           authorizationParser_.reset
-            (new OrthancPlugins::DefaultAuthorizationParser(context_, factory, root));
+            (new OrthancPlugins::DefaultAuthorizationParser(factory, root));
         }
 
         std::list<std::string> tmp;
@@ -314,9 +311,10 @@ extern "C"
 #else
         if (!tmp.empty())
         {
-          LOG(ERROR) << "The option \"TokenGetArguments\" of the authorization plugin "
-                     << "is only valid if compiled against Orthanc >= 1.3.0";
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_Plugin);
+          throw Orthanc::OrthancException(
+            Orthanc::ErrorCode_Plugin,
+            "The option \"TokenGetArguments\" of the authorization plugin "
+            "is only valid if compiled against Orthanc >= 1.3.0"
         }
 #endif
 
@@ -328,9 +326,10 @@ extern "C"
         static const char* WEB_SERVICE = "WebService";
         if (!configuration.LookupStringValue(url, WEB_SERVICE))
         {
-          LOG(ERROR) << "Missing mandatory option \"" << WEB_SERVICE
-                     << "\" for the authorization plugin";
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat);          
+          throw Orthanc::OrthancException(
+            Orthanc::ErrorCode_BadFileFormat,
+            "Missing mandatory option \"" + std::string(WEB_SERVICE) +
+            "\" for the authorization plugin");
         }
 
         if (configuration.LookupListOfStrings(tmp, "UncheckedLevels", false))
@@ -344,14 +343,14 @@ extern "C"
 
         authorizationService_.reset
           (new OrthancPlugins::CachedAuthorizationService
-           (new OrthancPlugins::AuthorizationWebService(context_, url), factory));
+           (new OrthancPlugins::AuthorizationWebService(url), factory));
 
-        OrthancPluginRegisterOnChangeCallback(context_, OnChangeCallback);
+        OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
         
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)
-        OrthancPluginRegisterIncomingHttpRequestFilter2(context_, FilterHttpRequests);
+        OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);
 #else
-        OrthancPluginRegisterIncomingHttpRequestFilter(context_, FilterHttpRequestsFallback);
+        OrthancPluginRegisterIncomingHttpRequestFilter(context, FilterHttpRequestsFallback);
 #endif
       }
       else

@@ -30,7 +30,6 @@ namespace OrthancPlugins
   class ResourceHierarchyCache : public boost::noncopyable
   {
   private:
-    OrthancPluginContext   *context_;
     std::auto_ptr<ICache>   cache_;   // Maps resources to their parents
     std::auto_ptr<ICache>   orthancToDicom_;
     std::auto_ptr<ICache>   dicomToOrthanc_;
@@ -57,8 +56,7 @@ namespace OrthancPlugins
     }
 
   public:
-    ResourceHierarchyCache(OrthancPluginContext* context,
-                           ICacheFactory& factory);
+    ResourceHierarchyCache(ICacheFactory& factory);
 
     void Invalidate(Orthanc::ResourceType level,
                     const std::string& identifier);

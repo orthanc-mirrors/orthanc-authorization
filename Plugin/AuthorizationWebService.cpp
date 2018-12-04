@@ -71,8 +71,8 @@ namespace OrthancPlugins
       body["token-value"] = tokenValue;
     }
 
-    MemoryBuffer answerBody(context_);
-    MemoryBuffer answerHeaders(context_);
+    MemoryBuffer answerBody;
+    MemoryBuffer answerHeaders;
     uint16_t httpStatus = 0;
 
     uint32_t headersCount = 0;
@@ -96,7 +96,7 @@ namespace OrthancPlugins
 
     std::string flatBody = body.toStyledString();
       
-    if (OrthancPluginHttpClient(context_, *answerBody, *answerHeaders,
+    if (OrthancPluginHttpClient(GetGlobalContext(), *answerBody, *answerHeaders,
                                 &httpStatus, OrthancPluginHttpMethod_Post,
                                 url_.c_str(), headersCount, headersKeys, headersValues,
                                 flatBody.c_str(), flatBody.size(),
@@ -120,8 +120,8 @@ namespace OrthancPlugins
         (answer.isMember(VALIDITY) &&
          answer[VALIDITY].type() != Json::intValue))
     {
-      LOG(ERROR) << "Syntax error in the result of the Web service";
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol);
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+                                      "Syntax error in the result of the Web service");
     }
 
     validity = 0;
@@ -130,8 +130,8 @@ namespace OrthancPlugins
       int tmp = answer[VALIDITY].asInt();
       if (tmp < 0)
       {
-        LOG(ERROR) << "A validity duration cannot be negative";
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol);          
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+                                        "A validity duration cannot be negative");
       }
 
       validity = static_cast<unsigned int>(tmp);
@@ -141,18 +141,6 @@ namespace OrthancPlugins
   }
     
 
-  AuthorizationWebService::AuthorizationWebService(OrthancPluginContext* context,
-                                                   const std::string& url) :
-    context_(context),
-    url_(url)
-  {
-    if (context_ == NULL)
-    {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
-    }
-  }
-
-    
   void AuthorizationWebService::SetCredentials(const std::string& username,
                                                const std::string& password)
   {

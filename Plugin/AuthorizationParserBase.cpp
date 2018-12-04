@@ -137,10 +137,9 @@ namespace OrthancPlugins
   }
 
   
-  AuthorizationParserBase::AuthorizationParserBase(OrthancPluginContext* context,
-                                                   ICacheFactory& factory)
+  AuthorizationParserBase::AuthorizationParserBase(ICacheFactory& factory)
   {
-    resourceHierarchy_.reset(new ResourceHierarchyCache(context, factory));
+    resourceHierarchy_.reset(new ResourceHierarchyCache(factory));
 
     if (resourceHierarchy_.get() == NULL)
     {

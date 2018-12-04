@@ -58,8 +58,7 @@ namespace OrthancPlugins
                           const std::string& instanceDicomUid);
 
   public:
-    AuthorizationParserBase(OrthancPluginContext* context,
-                            ICacheFactory& factory);
+    AuthorizationParserBase(ICacheFactory& factory);
 
     virtual void Invalidate(Orthanc::ResourceType level,
                             const std::string& id)

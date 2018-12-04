@@ -41,8 +41,7 @@ namespace OrthancPlugins
     boost::regex osimisViewerStudies_;
 
   public:
-    DefaultAuthorizationParser(OrthancPluginContext* context,
-                               ICacheFactory& factory,
+    DefaultAuthorizationParser(ICacheFactory& factory,
                                const std::string& dicomWebRoot);
 
     virtual bool Parse(AccessedResources& target,

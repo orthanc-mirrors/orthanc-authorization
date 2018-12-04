@@ -22,10 +22,9 @@
 
 namespace OrthancPlugins
 {
-  DefaultAuthorizationParser::DefaultAuthorizationParser(OrthancPluginContext* context,
-                                                         ICacheFactory& factory,
+  DefaultAuthorizationParser::DefaultAuthorizationParser(ICacheFactory& factory,
                                                          const std::string& dicomWebRoot) :
-    AuthorizationParserBase(context, factory),
+    AuthorizationParserBase(factory),
     resourcesPattern_("^/(patients|studies|series|instances)/([a-f0-9-]+)(|/.*)$"),
     seriesPattern_("^/(web-viewer/series|web-viewer/is-stable-series|wsi/pyramids|wsi/tiles)/([a-f0-9-]+)(|/.*)$"),
     instancesPattern_("^/web-viewer/instances/[a-z0-9]+-([a-f0-9-]+)_[0-9]+$"),

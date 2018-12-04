@@ -103,8 +103,7 @@ namespace OrthancPlugins
   }
 
   
-  bool OrthancResource::GetContent(Json::Value& content,
-                                   OrthancPluginContext* context) const
+  bool OrthancResource::GetContent(Json::Value& content) const
   {
     if (!IsValid())
     {
@@ -136,16 +135,15 @@ namespace OrthancPlugins
 
     uri = "/" + uri + "/" + id_;
         
-    return RestApiGet(content, context, uri, false /* ignore plugins */);
+    return RestApiGet(content, uri, false /* ignore plugins */);
   }
   
 
-  bool OrthancResource::GetDicomUid(std::string& dicomUid /* out */,
-                                    OrthancPluginContext* context) const
+  bool OrthancResource::GetDicomUid(std::string& dicomUid /* out */) const
   {
     Json::Value content;
         
-    if (!GetContent(content, context))
+    if (!GetContent(content))
     {
       return false;
     }
@@ -159,12 +157,11 @@ namespace OrthancPlugins
     
   bool OrthancResource::GetHierarchy(std::string& dicomUid /* out */,
                                      OrthancResource& parent /* out */,
-                                     std::list<OrthancResource>& children /* out */,
-                                     OrthancPluginContext* context) const
+                                     std::list<OrthancResource>& children /* out */) const
   {
     Json::Value content;
         
-    if (!GetContent(content, context))
+    if (!GetContent(content))
     {
       return false;
     }
@@ -244,28 +241,27 @@ namespace OrthancPlugins
 
 
   bool OrthancResource::LookupOrthancId(std::string& result,
-                                        OrthancPluginContext* context,
                                         Orthanc::ResourceType level,
                                         const std::string& dicomUid)
   {
-    OrthancString s(context);
+    OrthancString s;
 
     switch (level)
     {
       case Orthanc::ResourceType_Patient:
-        s.Assign(OrthancPluginLookupPatient(context, dicomUid.c_str()));
+        s.Assign(OrthancPluginLookupPatient(GetGlobalContext(), dicomUid.c_str()));
         break;
 
       case Orthanc::ResourceType_Study:
-        s.Assign(OrthancPluginLookupStudy(context, dicomUid.c_str()));
+        s.Assign(OrthancPluginLookupStudy(GetGlobalContext(), dicomUid.c_str()));
         break;
 
       case Orthanc::ResourceType_Series:
-        s.Assign(OrthancPluginLookupSeries(context, dicomUid.c_str()));
+        s.Assign(OrthancPluginLookupSeries(GetGlobalContext(), dicomUid.c_str()));
         break;
 
       case Orthanc::ResourceType_Instance:
-        s.Assign(OrthancPluginLookupInstance(context, dicomUid.c_str()));
+        s.Assign(OrthancPluginLookupInstance(GetGlobalContext(), dicomUid.c_str()));
         break;
 
       default:
