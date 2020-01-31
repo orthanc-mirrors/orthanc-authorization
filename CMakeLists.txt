@@ -1,5 +1,5 @@
 # Advanced authorization plugin for Orthanc
-# Copyright (C) 2017 Osimis, Belgium
+# Copyright (C) 2017-2020 Osimis S.A., Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Affero General Public License
