@@ -18,7 +18,7 @@
 
 #include "OrthancResource.h"
 
-#include <Plugins/Samples/Common/OrthancPluginCppWrapper.h>
+#include <OrthancPluginCppWrapper.h>
 
 namespace OrthancPlugins
 {

@@ -19,8 +19,8 @@
 
 #include "Enumerations.h"
 
-#include <Core/OrthancException.h>
-#include <Core/Toolbox.h>
+#include <OrthancException.h>
+#include <Toolbox.h>
 
 namespace OrthancPlugins
 {

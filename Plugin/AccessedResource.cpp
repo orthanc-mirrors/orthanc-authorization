@@ -18,7 +18,7 @@
 
 #include "AccessedResource.h"
 
-#include <Core/OrthancException.h>
+#include <OrthancException.h>
 
 namespace OrthancPlugins
 {

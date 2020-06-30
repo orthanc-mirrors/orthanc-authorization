@@ -22,9 +22,9 @@
 #include "AuthorizationWebService.h"
 #include "MemoryCache.h"
 
-#include <Plugins/Samples/Common/OrthancPluginCppWrapper.h>
-#include <Core/Logging.h>
-#include <Core/Toolbox.h>
+#include <OrthancPluginCppWrapper.h>
+#include <Logging.h>
+#include <Toolbox.h>
 
 
 // Configuration of the authorization plugin
@@ -256,7 +256,7 @@ extern "C"
       return -1;
     }
 
-    Orthanc::Logging::Initialize(context);
+    Orthanc::Logging::InitializePluginContext(context);
     OrthancPluginSetDescription(context, "Advanced authorization plugin for Orthanc.");
 
     try

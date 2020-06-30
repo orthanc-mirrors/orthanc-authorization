@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <Core/Enumerations.h>
+#include <Enumerations.h>
 
 namespace OrthancPlugins
 {

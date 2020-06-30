@@ -47,9 +47,15 @@ set(ORTHANC_FRAMEWORK_PLUGIN ON)
 include(${ORTHANC_ROOT}/Resources/CMake/OrthancFrameworkParameters.cmake)
 
 set(ENABLE_LOCALE OFF)           # Disable support for locales (notably in Boost)
+set(ENABLE_MODULE_IMAGES OFF)
+set(ENABLE_MODULE_JOBS OFF)
+set(ENABLE_MODULE_DICOM OFF)
 
 include(${ORTHANC_ROOT}/Resources/CMake/OrthancFrameworkConfiguration.cmake)
-include_directories(${ORTHANC_ROOT})
+include_directories(
+  ${ORTHANC_ROOT}/Core
+  ${ORTHANC_ROOT}/Plugins/Samples/Common
+  )
 
 
 # Check that the Orthanc SDK headers are available
