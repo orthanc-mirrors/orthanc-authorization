@@ -257,7 +257,12 @@ extern "C"
       return -1;
     }
 
+#if defined(ORTHANC_FRAMEWORK_VERSION_IS_ABOVE)  // This indicates Orthanc framework >= 1.7.2
     Orthanc::Logging::InitializePluginContext(context);
+#else
+    Orthanc::Logging::Initialize(context);
+#endif
+    
     OrthancPluginSetDescription(context, "Advanced authorization plugin for Orthanc.");
 
     try
