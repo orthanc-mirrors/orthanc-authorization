@@ -22,7 +22,8 @@
 #include "AuthorizationWebService.h"
 #include "MemoryCache.h"
 
-#include <OrthancPluginCppWrapper.h>
+#include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
+
 #include <Logging.h>
 #include <Toolbox.h>
 
