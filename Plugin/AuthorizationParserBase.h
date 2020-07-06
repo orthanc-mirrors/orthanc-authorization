@@ -21,12 +21,14 @@
 #include "IAuthorizationParser.h"
 #include "ResourceHierarchyCache.h"
 
+#include <Compatibility.h>  // For std::unique_ptr<>
+
 namespace OrthancPlugins
 {
   class AuthorizationParserBase : public IAuthorizationParser
   {
   private:
-    std::auto_ptr<ResourceHierarchyCache>  resourceHierarchy_;
+    std::unique_ptr<ResourceHierarchyCache>  resourceHierarchy_;
 
     void AddResourceInternal(AccessedResources& target,
                              Orthanc::ResourceType level,

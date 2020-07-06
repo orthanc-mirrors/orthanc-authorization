@@ -396,7 +396,7 @@ endif()
 
 ##
 ## Case of the Orthanc framework installed as a shared library in a
-## GNU/Linux distribution (typically Debian)
+## GNU/Linux distribution (typically Debian). New in Orthanc 1.7.2.
 ##
 
 if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "system")
@@ -438,7 +438,7 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "system")
 
     # Look for mandatory dependency Boost (cf. BoostConfiguration.cmake)
     include(FindBoost)
-    find_package(Boost COMPONENTS filesystem thread system date_time regex)
+    find_package(Boost COMPONENTS filesystem thread system date_time regex ${ORTHANC_BOOST_COMPONENTS})
 
     if (NOT Boost_FOUND)
       message(FATAL_ERROR "Unable to locate Boost on this system")
@@ -483,14 +483,6 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "system")
       include_directories(${DCMTK_INCLUDE_DIRS})
       link_libraries(${DCMTK_LIBRARIES})
     endif()
-  endif()
-
-  # Optional component - Google Test
-  if (ENABLE_GOOGLE_TEST)
-    set(USE_SYSTEM_GOOGLE_TEST ON CACHE BOOL "Use the system version of Google Test")
-    set(USE_GOOGLE_TEST_DEBIAN_PACKAGE OFF CACHE BOOL "Use the sources of Google Test shipped with libgtest-dev (Debian only)")
-    mark_as_advanced(USE_GOOGLE_TEST_DEBIAN_PACKAGE)
-    include(${CMAKE_CURRENT_LIST_DIR}/GoogleTestConfiguration.cmake)
   endif()
 
   # Look for Orthanc framework shared library

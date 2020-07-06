@@ -22,17 +22,18 @@
 #include "Enumerations.h"
 #include "OrthancResource.h"
 
+#include <Compatibility.h>  // For std::unique_ptr<>
+
 #include <orthanc/OrthancCPlugin.h>
-#include <memory>
 
 namespace OrthancPlugins
 {
   class ResourceHierarchyCache : public boost::noncopyable
   {
   private:
-    std::auto_ptr<ICache>   cache_;   // Maps resources to their parents
-    std::auto_ptr<ICache>   orthancToDicom_;
-    std::auto_ptr<ICache>   dicomToOrthanc_;
+    std::unique_ptr<ICache>   cache_;   // Maps resources to their parents
+    std::unique_ptr<ICache>   orthancToDicom_;
+    std::unique_ptr<ICache>   dicomToOrthanc_;
 
     std::string ComputeKey(Orthanc::ResourceType level,
                            const std::string identifier) const;

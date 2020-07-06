@@ -24,13 +24,14 @@
 
 #include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
 
+#include <Compatibility.h>  // For std::unique_ptr<>
 #include <Logging.h>
 #include <Toolbox.h>
 
 
 // Configuration of the authorization plugin
-static std::auto_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
-static std::auto_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
+static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
+static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::set<std::string> uncheckedResources_;
 static std::list<std::string> uncheckedFolders_;
 static std::list<OrthancPlugins::Token> tokens_;

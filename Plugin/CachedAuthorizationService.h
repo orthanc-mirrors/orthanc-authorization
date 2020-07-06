@@ -21,6 +21,8 @@
 #include "IAuthorizationService.h"
 #include "ICacheFactory.h"
 
+#include <Compatibility.h>  // For std::unique_ptr<>
+
 #include <memory>
 
 namespace OrthancPlugins
@@ -31,8 +33,8 @@ namespace OrthancPlugins
   class CachedAuthorizationService : public IAuthorizationService
   {
   private:
-    std::auto_ptr<IAuthorizationService>  decorated_;
-    std::auto_ptr<ICache>   cache_;
+    std::unique_ptr<IAuthorizationService>  decorated_;
+    std::unique_ptr<ICache>   cache_;
 
     std::string ComputeKey(OrthancPluginHttpMethod method,
                            const AccessedResource& access,
