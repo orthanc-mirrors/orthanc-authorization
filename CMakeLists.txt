@@ -41,20 +41,27 @@ set(USE_SYSTEM_ORTHANC_SDK ON CACHE BOOL "Use the system version of the Orthanc 
 
 
 # Download and setup the Orthanc framework
-include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/DownloadOrthancFramework.cmake)
+include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/CMake/DownloadOrthancFramework.cmake)
 
-set(ORTHANC_FRAMEWORK_PLUGIN ON)
-include(${ORTHANC_FRAMEWORK_ROOT}/Resources/CMake/OrthancFrameworkParameters.cmake)
+if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "system")
+  link_libraries(${ORTHANC_FRAMEWORK_LIBRARIES})
 
-set(ENABLE_LOCALE OFF)           # Disable support for locales (notably in Boost)
-set(ENABLE_MODULE_IMAGES OFF)
-set(ENABLE_MODULE_JOBS OFF)
-set(ENABLE_MODULE_DICOM OFF)
+else()
+  include(${ORTHANC_FRAMEWORK_ROOT}/Resources/CMake/OrthancFrameworkParameters.cmake)
 
-include(${ORTHANC_FRAMEWORK_ROOT}/Resources/CMake/OrthancFrameworkConfiguration.cmake)
-include_directories(
-  ${ORTHANC_FRAMEWORK_ROOT}/Sources
-  )
+  set(ENABLE_LOCALE OFF)           # Disable support for locales (notably in Boost)
+  set(ENABLE_MODULE_IMAGES OFF)
+  set(ENABLE_MODULE_JOBS OFF)
+  set(ENABLE_MODULE_DICOM OFF)
+
+  include(${ORTHANC_FRAMEWORK_ROOT}/Resources/CMake/OrthancFrameworkConfiguration.cmake)
+  include_directories(
+    ${ORTHANC_FRAMEWORK_ROOT}/Sources
+    )
+endif()
+
+
+include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Plugins/OrthancPluginsExports.cmake)
 
 
 # Check that the Orthanc SDK headers are available
