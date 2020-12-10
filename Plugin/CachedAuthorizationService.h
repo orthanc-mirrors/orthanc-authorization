@@ -49,10 +49,10 @@ namespace OrthancPlugins
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access,
                            const Token& token,
-                           const std::string& tokenValue);
+                           const std::string& tokenValue) ORTHANC_OVERRIDE;
     
     virtual bool IsGranted(unsigned int& validity,
                            OrthancPluginHttpMethod method,
-                           const AccessedResource& access);
+                           const AccessedResource& access) ORTHANC_OVERRIDE;
   };
 }

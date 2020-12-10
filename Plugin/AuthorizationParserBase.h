@@ -60,10 +60,10 @@ namespace OrthancPlugins
                           const std::string& instanceDicomUid);
 
   public:
-    AuthorizationParserBase(ICacheFactory& factory);
+    explicit AuthorizationParserBase(ICacheFactory& factory);
 
     virtual void Invalidate(Orthanc::ResourceType level,
-                            const std::string& id)
+                            const std::string& id) ORTHANC_OVERRIDE
     {
       resourceHierarchy_->Invalidate(level, id);
     }

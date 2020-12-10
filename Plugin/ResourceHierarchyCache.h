@@ -36,7 +36,7 @@ namespace OrthancPlugins
     std::unique_ptr<ICache>   dicomToOrthanc_;
 
     std::string ComputeKey(Orthanc::ResourceType level,
-                           const std::string identifier) const;
+                           const std::string& identifier) const;
     
     std::string ComputeKey(const OrthancResource& resource) const
     {
@@ -57,7 +57,7 @@ namespace OrthancPlugins
     }
 
   public:
-    ResourceHierarchyCache(ICacheFactory& factory);
+    explicit ResourceHierarchyCache(ICacheFactory& factory);
 
     void Invalidate(Orthanc::ResourceType level,
                     const std::string& identifier);
