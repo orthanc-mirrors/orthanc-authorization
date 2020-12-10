@@ -35,12 +35,12 @@ namespace OrthancPlugins
       unsigned int   maxSize_;
       
     public:
-      Factory(unsigned int maxSize) :
+      explicit Factory(unsigned int maxSize) :
         maxSize_(maxSize)
       {
       }
       
-      virtual ICache *Create()
+      virtual ICache *Create() ORTHANC_OVERRIDE
       {
         return new MemoryCache(maxSize_);
       }
@@ -60,17 +60,17 @@ namespace OrthancPlugins
     void InvalidateInternal(const std::string& key);
     
   public:
-    MemoryCache(unsigned int maxSize);
+    explicit MemoryCache(unsigned int maxSize);
     
     ~MemoryCache();
 
-    virtual void Invalidate(const std::string& key);
+    virtual void Invalidate(const std::string& key) ORTHANC_OVERRIDE;
 
     virtual void Store(const std::string& key,
                        const std::string& value,
-                       unsigned int expiration /* in seconds */);
+                       unsigned int expiration /* in seconds */) ORTHANC_OVERRIDE;
 
     virtual bool Retrieve(std::string& value,
-                          const std::string& key);
+                          const std::string& key) ORTHANC_OVERRIDE;
   };
 }

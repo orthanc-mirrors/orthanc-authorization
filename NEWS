@@ -1,8 +1,15 @@
 Pending changes in the mainline
 ===============================
 
+NB: This plugin is now deprecated.
+
+
+2020-12-10 - v 0.2.4
+====================
+
 * Added support for Osimis Web Viewer new route (osimis-viewer/custom-command/)
 * Support of dynamic linking against the system-wide Orthanc framework library
+
 
 2018-08-13 - v 0.2.3
 ====================
@@ -10,15 +17,18 @@ Pending changes in the mainline
 * Compatibility with Linux Standard Base
 * Now using the Orthanc framework
 
+
 2018-07-19 - v 0.2.2
 ====================
 
 * Added automated build
 
+
 2018-03-09 - v 0.2.1
 ====================
 
 * Upgraded sdk to 1.3.1
+
 
 2018-03-08 - v 0.2.0
 ====================

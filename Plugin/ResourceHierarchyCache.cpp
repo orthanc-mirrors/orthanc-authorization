@@ -26,7 +26,7 @@
 namespace OrthancPlugins
 {
   std::string ResourceHierarchyCache::ComputeKey(Orthanc::ResourceType level,
-                                                 const std::string identifier) const
+                                                 const std::string& identifier) const
   {
     return boost::lexical_cast<std::string>(level) + "|" + identifier;
   }
@@ -182,8 +182,6 @@ namespace OrthancPlugins
     {
       return true;
     }
-
-    OrthancResource resource(level, dicomUid);
 
     if (OrthancResource::LookupOrthancId(target, level, dicomUid))
     {
