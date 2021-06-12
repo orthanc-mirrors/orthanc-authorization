@@ -25,7 +25,7 @@ if (ORTHANC_PLUGIN_VERSION STREQUAL "mainline")
   set(ORTHANC_FRAMEWORK_VERSION "mainline")
   set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "hg")
 else()
-  set(ORTHANC_FRAMEWORK_VERSION "1.8.1")
+  set(ORTHANC_FRAMEWORK_VERSION "1.9.3")
   set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "web")
 endif()
 
@@ -46,6 +46,17 @@ include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/CMake/DownloadOrthancFramework.cma
 include_directories(${ORTHANC_FRAMEWORK_ROOT})
 
 if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "system")
+  if (ORTHANC_FRAMEWORK_USE_SHARED)
+    include(FindBoost)
+    find_package(Boost COMPONENTS regex system)
+    
+    if (NOT Boost_FOUND)
+      message(FATAL_ERROR "Unable to locate Boost on this system")
+    endif()
+    
+    link_libraries(${Boost_LIBRARIES} jsoncpp)
+  endif()
+  
   link_libraries(${ORTHANC_FRAMEWORK_LIBRARIES})
 
 else()
