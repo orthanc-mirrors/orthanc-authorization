@@ -124,7 +124,7 @@ namespace OrthancPlugins
     }
     else if (boost::regex_match(uri, what, osimisViewerImages_))
     {
-      AddOrthancInstance(target, what[1]);
+      AddOrthancInstance(target, what[2]);
       return true;
     }
     else

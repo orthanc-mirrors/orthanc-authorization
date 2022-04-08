@@ -1,11 +1,10 @@
 Pending changes in the mainline
 ===============================
 
+* Fix osimis-viewer route
 
 2020-12-10 - v 0.2.4
 ====================
-
-NB: This plugin is now deprecated.
 
 * Added support for Osimis Web Viewer new route (osimis-viewer/custom-command/)
 * Support of dynamic linking against the system-wide Orthanc framework library
