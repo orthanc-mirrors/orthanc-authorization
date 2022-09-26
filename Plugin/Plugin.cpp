@@ -348,9 +348,24 @@ extern "C"
           }
         }
 
+        std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(url));
+
+        std::string webServiceIdentifier;
+        if (configuration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
+        {
+          webService->SetIdentifier(webServiceIdentifier);
+        }
+
+        std::string webServiceUsername;
+        std::string webServicePassword;
+        if (configuration.LookupStringValue(webServiceUsername, "WebServiceUsername") && configuration.LookupStringValue(webServicePassword, "WebServicePassword"))
+        {
+          webService->SetCredentials(webServiceUsername, webServicePassword);
+        }
+
         authorizationService_.reset
           (new OrthancPlugins::CachedAuthorizationService
-           (new OrthancPlugins::AuthorizationWebService(url), factory));
+           (webService.release(), factory));
 
         OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
         

@@ -72,6 +72,15 @@ namespace OrthancPlugins
       body["token-value"] = tokenValue;
     }
 
+    if (!identifier_.empty())
+    {
+      body["identifier"] = identifier_;
+    }
+    else
+    {
+      body["identifier"] = Json::nullValue;
+    }
+
     MemoryBuffer answerBody;
     MemoryBuffer answerHeaders;
     uint16_t httpStatus = 0;
@@ -148,4 +157,10 @@ namespace OrthancPlugins
     username_ = username;
     password_ = password;
   }
+
+  void AuthorizationWebService::SetIdentifier(const std::string& webServiceIdentifier)
+  {
+    identifier_ = webServiceIdentifier;
+  }
+
 }

@@ -28,6 +28,7 @@ namespace OrthancPlugins
     std::string url_;
     std::string username_;
     std::string password_;
+    std::string identifier_;
 
     bool IsGrantedInternal(unsigned int& validity,
                            OrthancPluginHttpMethod method,
@@ -43,6 +44,8 @@ namespace OrthancPlugins
 
     void SetCredentials(const std::string& username,
                         const std::string& password);
+
+    void SetIdentifier(const std::string& webServiceIdentifier);
 
     virtual bool IsGranted(unsigned int& validity,
                            OrthancPluginHttpMethod method,

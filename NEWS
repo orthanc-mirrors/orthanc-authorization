@@ -1,6 +1,13 @@
 Pending changes in the mainline
 ===============================
 
+2022-09-26 - v 0.3.0
+====================
+
+* Added 3 new configurations: WebServiceUsername, WebServicePassword, WebServiceIdentifier.
+* The WebServiceIdentifier is now included in the payload sent to the WebService as the 
+  "identifier" field.
+
 
 2022-05-13 - v 0.2.5
 ====================
