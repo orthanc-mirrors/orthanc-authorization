@@ -1,6 +1,8 @@
 Pending changes in the mainline
 ===============================
 
+* added support for QIDO-RS query arguments (e.g: /dicom-web/studies?0020000D=1.2.3&...)
+
 2022-09-26 - v 0.3.0
 ====================
 

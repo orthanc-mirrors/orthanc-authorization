@@ -73,7 +73,13 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     {
       // Parse the resources that are accessed through this URI
       OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
-      if (!authorizationParser_->Parse(accesses, uri))    // TODO: include getArguments (e.g. for StoneViewer call http://localhost:8044/dicom-web/studies?0020000D=1.2.276.0.7230010.3.1.2.2831156000.1.1499097860.742568&includefield=00081030)
+      std::map<std::string, std::string> getArguments;
+      for (uint32_t i = 0; i < getArgumentsCount; i++)
+      {
+        getArguments[getArgumentsKeys[i]] = getArgumentsValues[i];
+      }
+
+      if (!authorizationParser_->Parse(accesses, uri, getArguments))
       {
         return 0;  // Unable to parse this URI
       }

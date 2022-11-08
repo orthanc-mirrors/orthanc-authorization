@@ -35,6 +35,7 @@ namespace OrthancPlugins
     boost::regex dicomWebStudies_;
     boost::regex dicomWebSeries_;
     boost::regex dicomWebInstances_;
+    boost::regex dicomWebQidoRsFindStudies_;
 
     boost::regex osimisViewerSeries_;
     boost::regex osimisViewerImages_;
@@ -45,6 +46,7 @@ namespace OrthancPlugins
                                const std::string& dicomWebRoot);
 
     virtual bool Parse(AccessedResources& target,
-                       const std::string& uri);
+                       const std::string& uri,
+                       const std::map<std::string, std::string>& getArguments);
   };
 }

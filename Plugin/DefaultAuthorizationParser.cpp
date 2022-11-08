@@ -19,6 +19,7 @@
 #include "DefaultAuthorizationParser.h"
 
 #include <OrthancException.h>
+#include <HttpServer/HttpToolbox.h>
 
 namespace OrthancPlugins
 {
@@ -47,11 +48,15 @@ namespace OrthancPlugins
       
     dicomWebInstances_ = boost::regex(
       "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*)$");
+
+    dicomWebQidoRsFindStudies_ = boost::regex(
+      "^" + tmp + "/studies\?(.*)$");
   }
 
 
   bool DefaultAuthorizationParser::Parse(AccessedResources& target,
-                                         const std::string& uri)
+                                         const std::string& uri,
+                                         const std::map<std::string, std::string>& getArguments)
   {
     // The mutex below should not be necessary, but we prefer to
     // ensure thread safety in boost::regex
@@ -125,6 +130,18 @@ namespace OrthancPlugins
     else if (boost::regex_match(uri, what, osimisViewerImages_))
     {
       AddOrthancInstance(target, what[2]);
+      return true;
+    }
+    else if (boost::regex_match(uri, what, dicomWebQidoRsFindStudies_))
+    {
+      std::string studyInstanceUid;
+
+      studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000D", "");
+
+      if (!studyInstanceUid.empty())
+      {
+        AddDicomStudy(target, studyInstanceUid);
+      }
       return true;
     }
     else

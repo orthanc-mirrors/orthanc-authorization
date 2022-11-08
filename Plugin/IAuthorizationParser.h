@@ -22,6 +22,7 @@
 
 #include <boost/noncopyable.hpp>
 #include <list>
+#include <map>
 
 namespace OrthancPlugins
 {
@@ -39,6 +40,7 @@ namespace OrthancPlugins
                             const std::string& id) = 0;
 
     virtual bool Parse(AccessedResources& target,
-                       const std::string& uri) = 0;
+                       const std::string& uri,
+                       const std::map<std::string, std::string>& getArguments) = 0;
   };
 }
