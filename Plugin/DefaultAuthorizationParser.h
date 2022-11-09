@@ -35,7 +35,7 @@ namespace OrthancPlugins
     boost::regex dicomWebStudies_;
     boost::regex dicomWebSeries_;
     boost::regex dicomWebInstances_;
-    boost::regex dicomWebQidoRsFindStudies_;
+    boost::regex dicomWebQidoRsFind_;
 
     boost::regex osimisViewerSeries_;
     boost::regex osimisViewerImages_;

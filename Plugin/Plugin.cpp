@@ -73,13 +73,9 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     {
       // Parse the resources that are accessed through this URI
       OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
-      std::map<std::string, std::string> getArguments;
-      for (uint32_t i = 0; i < getArgumentsCount; i++)
-      {
-        getArguments[getArgumentsKeys[i]] = getArgumentsValues[i];
-      }
+      OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
 
-      if (!authorizationParser_->Parse(accesses, uri, getArguments))
+      if (!authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
       {
         return 0;  // Unable to parse this URI
       }
@@ -108,9 +104,6 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           {
             OrthancPlugins::AssociativeArray headers
               (headersCount, headersKeys, headersValues, false);
-
-            OrthancPlugins::AssociativeArray getArguments
-              (getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
 
             // Loop over all the authorization tokens stored in the HTTP
             // headers, until finding one that is granted

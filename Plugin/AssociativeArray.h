@@ -41,5 +41,10 @@ namespace OrthancPlugins
     
     bool GetValue(std::string& value,
                   const std::string& key) const;
+
+    const std::map<std::string, std::string>& GetMap() const
+    {
+      return map_;
+    }
   };
 }

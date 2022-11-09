@@ -49,8 +49,8 @@ namespace OrthancPlugins
     dicomWebInstances_ = boost::regex(
       "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*)$");
 
-    dicomWebQidoRsFindStudies_ = boost::regex(
-      "^" + tmp + "/studies\?(.*)$");
+    dicomWebQidoRsFind_ = boost::regex(
+      "^" + tmp + "/(studies|series|instances)\?(.*)$");
   }
 
 
@@ -132,13 +132,23 @@ namespace OrthancPlugins
       AddOrthancInstance(target, what[2]);
       return true;
     }
-    else if (boost::regex_match(uri, what, dicomWebQidoRsFindStudies_))
+    else if (boost::regex_match(uri, what, dicomWebQidoRsFind_))
     {
-      std::string studyInstanceUid;
+      std::string studyInstanceUid, seriesInstanceUid, sopInstanceUid;
 
       studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000D", "");
+      seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000E", "");
+      sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "00080018", "");
 
-      if (!studyInstanceUid.empty())
+      if (!sopInstanceUid.empty() && !seriesInstanceUid.empty() && !studyInstanceUid.empty())
+      {
+        AddDicomInstance(target, studyInstanceUid, seriesInstanceUid, sopInstanceUid);
+      }
+      else if (!seriesInstanceUid.empty() && !studyInstanceUid.empty())
+      {
+        AddDicomSeries(target, studyInstanceUid, seriesInstanceUid);
+      }
+      else if (!studyInstanceUid.empty())
       {
         AddDicomStudy(target, studyInstanceUid);
       }
