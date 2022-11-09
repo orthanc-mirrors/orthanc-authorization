@@ -1,7 +1,13 @@
 Pending changes in the mainline
 ===============================
 
+* new configuration option "CheckedLevel" that is clearer than "UncheckedLevels".
+  "UncheckedLevels" remains for backward compatibility.
+  Allowed values: "patients", "studies", "series", "instances"
+* new configuration option "StandardConfigurations" to replace multiple configurations.
+  Allowed values: "osimis-web-viewer", "stone-webviewer"
 * added support for QIDO-RS query arguments (e.g: /dicom-web/studies?0020000D=1.2.3&...)
+
 
 2022-09-26 - v 0.3.0
 ====================
@@ -15,6 +21,7 @@ Pending changes in the mainline
 ====================
 
 * Fix osimis-viewer route
+
 
 2020-12-10 - v 0.2.4
 ====================

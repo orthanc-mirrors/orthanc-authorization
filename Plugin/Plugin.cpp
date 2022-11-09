@@ -34,7 +34,7 @@ static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::set<std::string> uncheckedResources_;
 static std::list<std::string> uncheckedFolders_;
-static std::list<OrthancPlugins::Token> tokens_;
+static std::set<OrthancPlugins::Token> tokens_;
 static std::set<OrthancPlugins::AccessLevel> uncheckedLevels_;
 
 
@@ -107,7 +107,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 
             // Loop over all the authorization tokens stored in the HTTP
             // headers, until finding one that is granted
-            for (std::list<OrthancPlugins::Token>::const_iterator
+            for (std::set<OrthancPlugins::Token>::const_iterator
                    token = tokens_.begin(); token != tokens_.end(); ++token)
             {
               std::string value;
@@ -303,7 +303,7 @@ extern "C"
         for (std::list<std::string>::const_iterator
                it = tmp.begin(); it != tmp.end(); ++it)
         {
-          tokens_.push_back(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, *it));
+          tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, *it));
         }
 
         configuration.LookupListOfStrings(tmp, "TokenGetArguments", true);
@@ -312,7 +312,7 @@ extern "C"
         for (std::list<std::string>::const_iterator
                it = tmp.begin(); it != tmp.end(); ++it)
         {
-          tokens_.push_back(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, *it));
+          tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, *it));
         }
 #else
         if (!tmp.empty())
@@ -338,12 +338,72 @@ extern "C"
             "\" for the authorization plugin");
         }
 
+        std::set<std::string> standardConfigurations;
+        if (configuration.LookupSetOfStrings(standardConfigurations, "StandardConfigurations", false))
+        {
+          if (standardConfigurations.find("osimis-web-viewer") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/osimis-viewer/app/");
+            uncheckedFolders_.push_back("/osimis-viewer/languages/");
+            uncheckedResources_.insert("/osimis-viewer/config.js");
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));
+          }
+
+          if (standardConfigurations.find("stone-webviewer") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/stone-webviewer/");
+            uncheckedResources_.insert("/system");
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
+          }
+
+        }
+
+        std::string checkedLevelString;
+        if (configuration.LookupStringValue(checkedLevelString, "CheckedLevel"))
+        {
+          OrthancPlugins::AccessLevel checkedLevel = OrthancPlugins::StringToAccessLevel(checkedLevelString);
+          if (checkedLevel == OrthancPlugins::AccessLevel_Instance) 
+          {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
+          }
+          else if (checkedLevel == OrthancPlugins::AccessLevel_Series) 
+          {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);
+          }
+          else if (checkedLevel == OrthancPlugins::AccessLevel_Study) 
+          {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);
+          }
+          else if (checkedLevel == OrthancPlugins::AccessLevel_Patient) 
+          {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);
+          }
+        }
+
         if (configuration.LookupListOfStrings(tmp, "UncheckedLevels", false))
         {
-          for (std::list<std::string>::const_iterator
-                 it = tmp.begin(); it != tmp.end(); ++it)
+          if (uncheckedLevels_.size() == 0)
           {
-            uncheckedLevels_.insert(OrthancPlugins::StringToAccessLevel(*it));
+            for (std::list<std::string>::const_iterator
+                  it = tmp.begin(); it != tmp.end(); ++it)
+            {
+              uncheckedLevels_.insert(OrthancPlugins::StringToAccessLevel(*it));
+            }
+          }
+          else
+          {
+            LOG(ERROR) << "Authorization plugin: you may only provide one of 'CheckedLevel' or 'UncheckedLevels' configurations";
+            return -1;
           }
         }
 
