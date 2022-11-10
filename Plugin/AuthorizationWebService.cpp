@@ -21,6 +21,7 @@
 #include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
 
 #include <Logging.h>
+#include <Toolbox.h>
 
 namespace OrthancPlugins
 {
@@ -93,10 +94,16 @@ namespace OrthancPlugins
         token->GetType() == TokenType_HttpHeader)
     {
       // If the token source is a HTTP header, forward it also as a
-      // HTTP header
-      headersKeys[headersCount] = token->GetKey().c_str();
-      headersValues[headersCount] = tokenValue.c_str();
-      headersCount++;
+      // HTTP header except if it is the Authorization header that might conflict with username_ and password_
+      std::string lowerTokenKey;
+      Orthanc::Toolbox::ToLowerCase(lowerTokenKey, token->GetKey());
+      
+      if (!(lowerTokenKey == "authorization" && !username_.empty()))
+      {
+        headersKeys[headersCount] = token->GetKey().c_str();
+        headersValues[headersCount] = tokenValue.c_str();
+        headersCount++;
+      }
     }
 
     // set the correct content type for the outgoing

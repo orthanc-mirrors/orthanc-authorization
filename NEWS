@@ -7,7 +7,11 @@ Pending changes in the mainline
 * new configuration option "StandardConfigurations" to replace multiple configurations.
   Allowed values: "osimis-web-viewer", "stone-webviewer"
 * added support for QIDO-RS query arguments (e.g: /dicom-web/studies?0020000D=1.2.3&...)
-
+* possible BREAKING_CHANGE: if "TokenHttpHeaders" is set to "Authorization" and if
+  "WebServiceUsername" is defined, the "Authorization" header of the HTTP request
+  sent to the auth-service will contain the basic auth info from WebServiceUsername and 
+  WebServicePassword.  You should get the "Authorization" value from the token-value field
+  of the payload sent to the auth-service.
 
 2022-09-26 - v 0.3.0
 ====================
