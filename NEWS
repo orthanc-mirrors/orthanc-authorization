@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2022-11-10 - v 0.4.0
+====================
 
 * new configuration option "CheckedLevel" that is clearer than "UncheckedLevels".
   "UncheckedLevels" remains for backward compatibility.
