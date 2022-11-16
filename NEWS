@@ -1,3 +1,10 @@
+Pending changes
+====================
+
+* fix: get argument values were transformed to lower case
+* the "osimis-web-viewer" StandardConfigurations now take into account
+  the token get argument used when downloading a study from the UI
+
 2022-11-10 - v 0.4.0
 ====================
 

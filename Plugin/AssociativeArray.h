@@ -31,13 +31,13 @@ namespace OrthancPlugins
     typedef std::map<std::string, std::string>  Map;
 
     Map  map_;
-    bool caseSensitive_;
+    bool caseSensitiveKeys_;
 
   public:
     AssociativeArray(uint32_t headersCount,
                      const char *const *headersKeys,
                      const char *const *headersValues,
-                     bool caseSensitive);
+                     bool caseSensitiveKeys);
     
     bool GetValue(std::string& value,
                   const std::string& key) const;

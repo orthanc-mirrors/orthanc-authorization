@@ -25,23 +25,19 @@ namespace OrthancPlugins
   AssociativeArray::AssociativeArray(uint32_t headersCount,
                                      const char *const *headersKeys,
                                      const char *const *headersValues,
-                                     bool caseSensitive) :
-    caseSensitive_(caseSensitive)
+                                     bool caseSensitiveKeys) :
+    caseSensitiveKeys_(caseSensitiveKeys)
   {
     for (uint32_t i = 0; i < headersCount; i++)
     {
-      std::string value;
+      std::string key = headersKeys[i];
 
-      if (caseSensitive)
+      if (!caseSensitiveKeys)
       {
-        Orthanc::Toolbox::ToLowerCase(value, headersValues[i]);
-      }
-      else
-      {
-        value = headersValues[i];
+        Orthanc::Toolbox::ToLowerCase(key, headersKeys[i]);
       }
         
-      map_[headersKeys[i]] = value;
+      map_[headersKeys[i]] = headersValues[i];
     }
   }
 
@@ -56,7 +52,7 @@ namespace OrthancPlugins
 
     Map::const_iterator found;
 
-    if (caseSensitive_)
+    if (caseSensitiveKeys_)
     {
       found = map_.find(key);
     }
