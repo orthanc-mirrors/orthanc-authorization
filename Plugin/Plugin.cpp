@@ -354,9 +354,19 @@ extern "C"
           if (standardConfigurations.find("stone-webviewer") != standardConfigurations.end())
           {
             uncheckedFolders_.push_back("/stone-webviewer/");
-            uncheckedResources_.insert("/system");
+            uncheckedResources_.insert("/system");        // for Stone to check that Orthanc is the server providing the data
+            uncheckedResources_.insert("/tools/lookup");  // for Downloads  (we consider that having access to tools/lookup can not give information about other patients/studies since it only return IDs, no patient data)
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
+          }
+
+          if (standardConfigurations.find("orthanc-explorer-2") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/ui/app/");
+            uncheckedResources_.insert("/ui/app/configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));          // for keycloak
           }
 
         }
