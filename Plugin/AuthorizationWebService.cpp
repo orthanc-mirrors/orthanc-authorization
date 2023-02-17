@@ -111,6 +111,11 @@ namespace OrthancPlugins
     headersValues[headersCount] = "application/json";
     headersCount++;
 
+    // set the correct content type for the outgoing
+    headersKeys[headersCount] = "Expect";
+    headersValues[headersCount] = "";
+    headersCount++;
+
     std::string flatBody = body.toStyledString();
       
     if (OrthancPluginHttpClient(GetGlobalContext(), *answerBody, *answerHeaders,
