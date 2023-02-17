@@ -363,7 +363,7 @@ extern "C"
           if (standardConfigurations.find("orthanc-explorer-2") != standardConfigurations.end())
           {
             uncheckedFolders_.push_back("/ui/app/");
-            uncheckedResources_.insert("/ui/app/configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
+            uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));          // for keycloak
