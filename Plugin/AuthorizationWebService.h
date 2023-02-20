@@ -29,6 +29,7 @@ namespace OrthancPlugins
     std::string username_;
     std::string password_;
     std::string identifier_;
+    std::string userProfileUrl_;
 
     bool IsGrantedInternal(unsigned int& validity,
                            OrthancPluginHttpMethod method,
@@ -47,6 +48,8 @@ namespace OrthancPlugins
 
     void SetIdentifier(const std::string& webServiceIdentifier);
 
+    void SetUserProfileUrl(const std::string& url);
+
     virtual bool IsGranted(unsigned int& validity,
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access,
@@ -62,5 +65,10 @@ namespace OrthancPlugins
     {
       return IsGrantedInternal(validity, method, access, NULL, "");
     }
+
+    virtual bool GetUserProfile(Json::Value& profile /* out */,
+                                const Token& token,
+                                const std::string& tokenValue);
+
   };
 }

@@ -1,4 +1,5 @@
 * new "orthanc-explorer-2" StandardConfigurations
+* new "auth/user-profile" Rest API route
 
 2022-11-16 - v 0.4.1
 ====================

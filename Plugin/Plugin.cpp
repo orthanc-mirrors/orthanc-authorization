@@ -240,6 +240,61 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
+void GetUserProfile(OrthancPluginRestOutput* output,
+                    const char* /*url*/,
+                    const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Get)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+  }
+  else
+  {
+    OrthancPlugins::AssociativeArray headers
+      (request->headersCount, request->headersKeys, request->headersValues, false);
+
+    OrthancPlugins::AssociativeArray getArguments
+      (request->getCount, request->getKeys, request->getValues, true);
+
+
+    // Loop over all the authorization tokens stored in the HTTP
+    // headers, until finding one that is granted
+    for (std::set<OrthancPlugins::Token>::const_iterator
+            token = tokens_.begin(); token != tokens_.end(); ++token)
+    {
+      Json::Value profile;
+
+      std::string value;
+
+      bool hasValue = false;
+      switch (token->GetType())
+      {
+        case OrthancPlugins::TokenType_HttpHeader:
+          hasValue = headers.GetValue(value, token->GetKey());
+          break;
+
+        case OrthancPlugins::TokenType_GetArgument:
+          hasValue = getArguments.GetValue(value, token->GetKey());
+          break;
+
+        default:
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+      }
+      
+      if (hasValue)
+      {
+        authorizationService_->GetUserProfile(profile, *token, value);
+        
+        OrthancPlugins::AnswerJson(profile, output);
+        break;
+      }
+    }
+
+  }
+}
+
 
 extern "C"
 {
@@ -364,6 +419,7 @@ extern "C"
           {
             uncheckedFolders_.push_back("/ui/app/");
             uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
+            uncheckedResources_.insert("/auth/user-profile");
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));          // for keycloak
@@ -433,11 +489,18 @@ extern "C"
           webService->SetCredentials(webServiceUsername, webServicePassword);
         }
 
+        std::string webServiceUserProfileUrl;
+        if (configuration.LookupStringValue(webServiceUserProfileUrl, "WebServiceUserProfileUrl"))
+        {
+          webService->SetUserProfileUrl(webServiceUserProfileUrl);
+        }
+
         authorizationService_.reset
           (new OrthancPlugins::CachedAuthorizationService
            (webService.release(), factory));
 
         OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
+        OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user-profile", true);
         
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)
         OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);

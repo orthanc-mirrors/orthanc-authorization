@@ -23,6 +23,7 @@
 
 #include <orthanc/OrthancCPlugin.h>
 #include <boost/noncopyable.hpp>
+#include <json/json.h>
 
 namespace OrthancPlugins
 {
@@ -43,5 +44,9 @@ namespace OrthancPlugins
     virtual bool IsGranted(unsigned int& validity /* out */,
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access) = 0;
+
+    virtual bool GetUserProfile(Json::Value& profile /* out */,
+                                const Token& token,
+                                const std::string& tokenValue) = 0;
   };
 }

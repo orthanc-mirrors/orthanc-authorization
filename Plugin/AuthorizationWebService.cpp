@@ -22,6 +22,7 @@
 
 #include <Logging.h>
 #include <Toolbox.h>
+#include <HttpClient.h>
 
 namespace OrthancPlugins
 {
@@ -170,9 +171,65 @@ namespace OrthancPlugins
     password_ = password;
   }
 
+  void AuthorizationWebService::SetUserProfileUrl(const std::string& url)
+  {
+    userProfileUrl_ = url;
+  }
+
   void AuthorizationWebService::SetIdentifier(const std::string& webServiceIdentifier)
   {
     identifier_ = webServiceIdentifier;
+  }
+
+  bool AuthorizationWebService::GetUserProfile(Json::Value& profile /* out */,
+                                               const Token& token,
+                                               const std::string& tokenValue)
+  {
+    if (userProfileUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get user profile if the 'WebServiceUserProfileUrl' is not configured");
+    }
+
+    Orthanc::WebServiceParameters authWebservice;
+    authWebservice.SetUrl(userProfileUrl_);
+
+    if (!username_.empty())
+    {
+      authWebservice.SetCredentials(username_, password_);
+    }
+
+    Json::Value body;
+
+    body["token-key"] = token.GetKey();
+    body["token-value"] = tokenValue;
+
+    if (!identifier_.empty())
+    {
+      body["identifier"] = identifier_;
+    }
+    else
+    {
+      body["identifier"] = Json::nullValue;
+    }
+
+    std::string bodyAsString;
+    Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
+
+    try
+    {
+      Orthanc::HttpClient authClient(authWebservice, "");
+      authClient.AssignBody(bodyAsString);
+      authClient.SetMethod(Orthanc::HttpMethod_Post);
+      authClient.AddHeader("Content-Type", "application/json");
+      authClient.AddHeader("Expect", "");
+
+      authClient.ApplyAndThrowException(profile);
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
   }
 
 }

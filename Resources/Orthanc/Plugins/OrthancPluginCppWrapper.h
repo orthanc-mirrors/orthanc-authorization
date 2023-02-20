@@ -2,7 +2,8 @@
  * Orthanc - A Lightweight, RESTful DICOM Store
  * Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
  * Department, University Hospital of Liege, Belgium
- * Copyright (C) 2017-2023 Osimis S.A., Belgium
+ * Copyright (C) 2017-2022 Osimis S.A., Belgium
+ * Copyright (C) 2021-2022 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -114,6 +115,18 @@
 #  define HAS_ORTHANC_PLUGIN_STORAGE_COMMITMENT_SCP  0
 #endif
 
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 9, 2)
+#  define HAS_ORTHANC_PLUGIN_GENERIC_CALL_REST_API  1
+#else
+#  define HAS_ORTHANC_PLUGIN_GENERIC_CALL_REST_API  0
+#endif
+
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 10, 1)
+#  define HAS_ORTHANC_PLUGIN_WEBDAV  1
+#else
+#  define HAS_ORTHANC_PLUGIN_WEBDAV  0
+#endif
+
 
 
 namespace OrthancPlugins
@@ -217,6 +230,19 @@ namespace OrthancPlugins
                      const Json::Value& body,
                      bool applyPlugins);
 
+#if HAS_ORTHANC_PLUGIN_GENERIC_CALL_REST_API == 1
+    bool RestApiPost(const std::string& uri,
+                     const Json::Value& body,
+                     const std::map<std::string, std::string>& httpHeaders,
+                     bool applyPlugins);
+
+    bool RestApiPost(const std::string& uri,
+                     const void* body,
+                     size_t bodySize,
+                     const std::map<std::string, std::string>& httpHeaders,
+                     bool applyPlugins);
+#endif
+
     bool RestApiPut(const std::string& uri,
                     const Json::Value& body,
                     bool applyPlugins);
@@ -296,10 +322,17 @@ namespace OrthancPlugins
       return str_;
     }
 
+    bool IsNullOrEmpty() const
+    {
+      return str_ == NULL || str_[0] == 0;
+    }
+
     void ToString(std::string& target) const;
 
     void ToJson(Json::Value& target) const;
-  };
+  
+    void ToJsonWithoutComments(Json::Value& target) const;
+};
 
 
   class OrthancConfiguration : public boost::noncopyable
@@ -521,6 +554,14 @@ namespace OrthancPlugins
                    size_t bodySize,
                    bool applyPlugins);
 
+#if HAS_ORTHANC_PLUGIN_GENERIC_CALL_REST_API == 1
+  bool RestApiPost(Json::Value& result,
+                   const std::string& uri,
+                   const Json::Value& body,
+                   const std::map<std::string, std::string>& httpHeaders,
+                   bool applyPlugins);
+#endif
+
   bool RestApiPost(Json::Value& result,
                    const std::string& uri,
                    const Json::Value& body,
@@ -601,6 +642,10 @@ namespace OrthancPlugins
                                   unsigned int minor,
                                   unsigned int revision);
 
+  bool CheckMinimalVersion(const char* version,
+                           unsigned int major,
+                           unsigned int minor,
+                           unsigned int revision);
 
   namespace Internals
   {
@@ -710,53 +755,65 @@ namespace OrthancPlugins
 
     bool DoGet(MemoryBuffer& target,
                size_t index,
-               const std::string& uri) const;
+               const std::string& uri,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoGet(MemoryBuffer& target,
                const std::string& name,
-               const std::string& uri) const;
+               const std::string& uri,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoGet(Json::Value& target,
                size_t index,
-               const std::string& uri) const;
+               const std::string& uri,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoGet(Json::Value& target,
                const std::string& name,
-               const std::string& uri) const;
+               const std::string& uri,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoPost(MemoryBuffer& target,
                 size_t index,
                 const std::string& uri,
-                const std::string& body) const;
+                const std::string& body,
+                const std::map<std::string, std::string>& headers) const;
 
     bool DoPost(MemoryBuffer& target,
                 const std::string& name,
                 const std::string& uri,
-                const std::string& body) const;
+                const std::string& body,
+                const std::map<std::string, std::string>& headers) const;
 
     bool DoPost(Json::Value& target,
                 size_t index,
                 const std::string& uri,
-                const std::string& body) const;
+                const std::string& body,
+                const std::map<std::string, std::string>& headers) const;
 
     bool DoPost(Json::Value& target,
                 const std::string& name,
                 const std::string& uri,
-                const std::string& body) const;
+                const std::string& body,
+                const std::map<std::string, std::string>& headers) const;
 
     bool DoPut(size_t index,
                const std::string& uri,
-               const std::string& body) const;
+               const std::string& body,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoPut(const std::string& name,
                const std::string& uri,
-               const std::string& body) const;
+               const std::string& body,
+               const std::map<std::string, std::string>& headers) const;
 
     bool DoDelete(size_t index,
-                  const std::string& uri) const;
+                  const std::string& uri,
+                  const std::map<std::string, std::string>& headers) const;
 
     bool DoDelete(const std::string& name,
-                  const std::string& uri) const;
+                  const std::string& uri,
+                  const std::map<std::string, std::string>& headers) const;
   };
 #endif
 
@@ -776,9 +833,19 @@ namespace OrthancPlugins
 
     static float CallbackGetProgress(void* job);
 
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 11, 3)
+    static OrthancPluginErrorCode CallbackGetContent(OrthancPluginMemoryBuffer* target,
+                                                     void* job);
+#else
     static const char* CallbackGetContent(void* job);
+#endif
 
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 11, 3)
+    static int32_t CallbackGetSerialized(OrthancPluginMemoryBuffer* target,
+                                         void* job);
+#else
     static const char* CallbackGetSerialized(void* job);
+#endif
 
     static OrthancPluginJobStepStatus CallbackStep(void* job);
 
@@ -1245,4 +1312,108 @@ namespace OrthancPlugins
                                     const std::string& transferSyntax);
 #endif
   };
+
+// helper method to convert Http headers from the plugin SDK to a std::map
+void GetHttpHeaders(std::map<std::string, std::string>& result, const OrthancPluginHttpRequest* request);
+
+#if HAS_ORTHANC_PLUGIN_WEBDAV == 1
+  class IWebDavCollection : public boost::noncopyable
+  {
+  public:
+    class FileInfo
+    {
+    private:
+      std::string  name_;
+      uint64_t     contentSize_;
+      std::string  mime_;
+      std::string  dateTime_;
+
+    public:
+      FileInfo(const std::string& name,
+               uint64_t contentSize,
+               const std::string& dateTime) :
+        name_(name),
+        contentSize_(contentSize),
+        dateTime_(dateTime)
+      {
+      }
+
+      const std::string& GetName() const
+      {
+        return name_;
+      }
+
+      uint64_t GetContentSize() const
+      {
+        return contentSize_;
+      }
+
+      void SetMimeType(const std::string& mime)
+      {
+        mime_ = mime;
+      }
+
+      const std::string& GetMimeType() const
+      {
+        return mime_;
+      }
+
+      const std::string& GetDateTime() const
+      {
+        return dateTime_;
+      }
+    };
+  
+    class FolderInfo
+    {
+    private:
+      std::string  name_;
+      std::string  dateTime_;
+
+    public:
+      FolderInfo(const std::string& name,
+                 const std::string& dateTime) :
+        name_(name),
+        dateTime_(dateTime)
+      {
+      }
+
+      const std::string& GetName() const
+      {
+        return name_;
+      }
+
+      const std::string& GetDateTime() const
+      {
+        return dateTime_;
+      }
+    };
+  
+    virtual ~IWebDavCollection()
+    {
+    }
+
+    virtual bool IsExistingFolder(const std::vector<std::string>& path) = 0;
+
+    virtual bool ListFolder(std::list<FileInfo>& files,
+                            std::list<FolderInfo>& subfolders,
+                            const std::vector<std::string>& path) = 0;
+  
+    virtual bool GetFile(std::string& content /* out */,
+                         std::string& mime /* out */,
+                         std::string& dateTime /* out */,
+                         const std::vector<std::string>& path) = 0;
+
+    virtual bool StoreFile(const std::vector<std::string>& path,
+                           const void* data,
+                           size_t size) = 0;
+
+    virtual bool CreateFolder(const std::vector<std::string>& path) = 0;
+
+    virtual bool DeleteItem(const std::vector<std::string>& path) = 0;
+
+    static void Register(const std::string& uri,
+                         IWebDavCollection& collection);
+  };
+#endif
 }

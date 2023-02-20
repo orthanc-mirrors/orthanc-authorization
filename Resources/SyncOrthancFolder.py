@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 #
 # This maintenance script updates the content of the "Orthanc" folder
@@ -8,10 +8,10 @@
 import multiprocessing
 import os
 import stat
-import urllib2
+import urllib.request
 
 TARGET = os.path.join(os.path.dirname(__file__), 'Orthanc')
-PLUGIN_SDK_VERSION = '1.3.1'
+PLUGIN_SDK_VERSION = '1.11.3'
 REPOSITORY = 'https://hg.orthanc-server.com/orthanc/raw-file'
 
 FILES = [
@@ -20,10 +20,11 @@ FILES = [
     ('OrthancFramework/Resources/CMake/DownloadOrthancFramework.cmake', 'CMake'),
     ('OrthancFramework/Resources/CMake/DownloadPackage.cmake', 'CMake'),
     ('OrthancFramework/Resources/CMake/GoogleTestConfiguration.cmake', 'CMake'),
-    ('OrthancFramework/Resources/Toolchains/LinuxStandardBaseToolchain.cmake', '.'),
-    ('OrthancFramework/Resources/Toolchains/MinGW-W64-Toolchain32.cmake', '.'),
-    ('OrthancFramework/Resources/Toolchains/MinGW-W64-Toolchain64.cmake', '.'),
-    ('OrthancFramework/Resources/Toolchains/MinGWToolchain.cmake', '.'),
+    ('OrthancFramework/Resources/EmbedResources.py', 'CMake'),
+    ('OrthancFramework/Resources/Toolchains/LinuxStandardBaseToolchain.cmake', 'Toolchains'),
+    ('OrthancFramework/Resources/Toolchains/MinGW-W64-Toolchain32.cmake', 'Toolchains'),
+    ('OrthancFramework/Resources/Toolchains/MinGW-W64-Toolchain64.cmake', 'Toolchains'),
+    ('OrthancFramework/Resources/Toolchains/MinGWToolchain.cmake', 'Toolchains'),
     ('OrthancServer/Plugins/Samples/Common/ExportedSymbolsPlugins.list', 'Plugins'),
     ('OrthancServer/Plugins/Samples/Common/OrthancPluginCppWrapper.cpp', 'Plugins'),
     ('OrthancServer/Plugins/Samples/Common/OrthancPluginCppWrapper.h', 'Plugins'),
@@ -41,7 +42,7 @@ def Download(x):
     branch = x[0]
     source = x[1]
     target = os.path.join(TARGET, x[2])
-    print target
+    print(target)
 
     try:
         os.makedirs(os.path.dirname(target))
@@ -50,8 +51,12 @@ def Download(x):
 
     url = '%s/%s/%s' % (REPOSITORY, branch, source)
 
-    with open(target, 'w') as f:
-        f.write(urllib2.urlopen(url).read())
+    with open(target, 'wb') as f:
+        try:
+            f.write(urllib.request.urlopen(url).read())
+        except:
+            print('ERROR %s' % url)
+            raise
 
 
 commands = []
@@ -64,7 +69,7 @@ for f in FILES:
 for f in SDK:
     commands.append([
         'Orthanc-%s' % PLUGIN_SDK_VERSION, 
-        'Plugins/Include/%s' % f,
+        'OrthancServer/Plugins/Include/%s' % f,
         'Sdk-%s/%s' % (PLUGIN_SDK_VERSION, f) 
     ])
 

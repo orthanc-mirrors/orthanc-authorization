@@ -54,5 +54,9 @@ namespace OrthancPlugins
     virtual bool IsGranted(unsigned int& validity,
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access) ORTHANC_OVERRIDE;
-  };
+ 
+    virtual bool GetUserProfile(Json::Value& profile /* out */,
+                                const Token& token,
+                                const std::string& tokenValue);
+ };
 }

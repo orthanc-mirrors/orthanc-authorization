@@ -96,4 +96,12 @@ namespace OrthancPlugins
     // The cache is not used if no token is available
     return decorated_->IsGranted(validity, method, access);
   }
+
+  bool CachedAuthorizationService::GetUserProfile(Json::Value& profile /* out */,
+                                                  const Token& token,
+                                                  const std::string& tokenValue)
+  {
+    return decorated_->GetUserProfile(profile, token, tokenValue);
+  }
+
 }
