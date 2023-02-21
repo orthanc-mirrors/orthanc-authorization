@@ -83,14 +83,24 @@ namespace OrthancPlugins
       body["identifier"] = Json::nullValue;
     }
 
-    MemoryBuffer answerBody;
-    MemoryBuffer answerHeaders;
-    uint16_t httpStatus = 0;
+    Orthanc::WebServiceParameters authWebservice;
+    authWebservice.SetUrl(url_);
 
-    uint32_t headersCount = 0;
-    const char* headersKeys[2];
-    const char* headersValues[2];
-      
+    if (!username_.empty())
+    {
+      authWebservice.SetCredentials(username_, password_);
+    }
+
+    std::string bodyAsString;
+    Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
+
+    Orthanc::HttpClient authClient(authWebservice, "");
+    authClient.AssignBody(bodyAsString);
+    authClient.SetMethod(Orthanc::HttpMethod_Post);
+    authClient.AddHeader("Content-Type", "application/json");
+    authClient.AddHeader("Expect", "");
+    authClient.SetTimeout(10);
+
     if (token != NULL &&
         token->GetType() == TokenType_HttpHeader)
     {
@@ -101,38 +111,12 @@ namespace OrthancPlugins
       
       if (!(lowerTokenKey == "authorization" && !username_.empty()))
       {
-        headersKeys[headersCount] = token->GetKey().c_str();
-        headersValues[headersCount] = tokenValue.c_str();
-        headersCount++;
+        authClient.AddHeader(token->GetKey(), tokenValue);
       }
     }
-
-    // set the correct content type for the outgoing
-    headersKeys[headersCount] = "Content-Type";
-    headersValues[headersCount] = "application/json";
-    headersCount++;
-
-    // set the correct content type for the outgoing
-    headersKeys[headersCount] = "Expect";
-    headersValues[headersCount] = "";
-    headersCount++;
-
-    std::string flatBody = body.toStyledString();
       
-    if (OrthancPluginHttpClient(GetGlobalContext(), *answerBody, *answerHeaders,
-                                &httpStatus, OrthancPluginHttpMethod_Post,
-                                url_.c_str(), headersCount, headersKeys, headersValues,
-                                flatBody.c_str(), flatBody.size(),
-                                username_.empty() ? NULL : username_.c_str(),
-                                password_.empty() ? NULL : password_.c_str(),
-                                10 /* timeout */, NULL, NULL, NULL, 0)
-        != OrthancPluginErrorCode_Success)
-    {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol);        
-    }
-
     Json::Value answer;
-    answerBody.ToJson(answer);
+    authClient.ApplyAndThrowException(answer);
 
     static const char* GRANTED = "granted";
     static const char* VALIDITY = "validity";
@@ -222,6 +206,7 @@ namespace OrthancPlugins
       authClient.SetMethod(Orthanc::HttpMethod_Post);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
 
       authClient.ApplyAndThrowException(profile);
       return true;
