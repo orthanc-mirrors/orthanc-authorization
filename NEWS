@@ -1,5 +1,7 @@
 * new "orthanc-explorer-2" StandardConfigurations
 * new "auth/user-profile" Rest API route
+* new user-permission based authorization model.  This is enabled if you
+  define the new "WebServiceUserProfileUrl" configuration.
 
 2022-11-16 - v 0.4.1
 ====================

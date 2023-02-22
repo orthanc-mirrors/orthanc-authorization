@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "IAuthorizationService.h"
+#include "BaseAuthorizationService.h"
 #include "ICacheFactory.h"
 
 #include <Compatibility.h>  // For std::unique_ptr<>
@@ -30,33 +30,41 @@ namespace OrthancPlugins
   /**
    * Decorator design pattern to add a cache around an IAuthorizationService
    **/
-  class CachedAuthorizationService : public IAuthorizationService
+  class CachedAuthorizationService : public BaseAuthorizationService
   {
   private:
-    std::unique_ptr<IAuthorizationService>  decorated_;
+    std::unique_ptr<BaseAuthorizationService>  decorated_;
     std::unique_ptr<ICache>   cache_;
 
     std::string ComputeKey(OrthancPluginHttpMethod method,
                            const AccessedResource& access,
                            const Token& token,
                            const std::string& tokenValue) const;
+
+    std::string ComputeKey(const std::string& permission,
+                           const Token& token,
+                           const std::string& tokenValue) const;
+
+    virtual bool IsGrantedInternal(unsigned int& validity,
+                                   OrthancPluginHttpMethod method,
+                                   const AccessedResource& access,
+                                   const Token* token,
+                                   const std::string& tokenValue) ORTHANC_OVERRIDE;
     
+    virtual bool GetUserProfileInternal(unsigned int& validity,
+                                        Json::Value& profile /* out */,
+                                        const Token* token,
+                                        const std::string& tokenValue) ORTHANC_OVERRIDE;
+
+    virtual bool HasUserPermissionInternal(unsigned int& validity,
+                                           const std::string& permission,
+                                           const Token* token,
+                                           const std::string& tokenValue) ORTHANC_OVERRIDE;
+
+
   public:
-    CachedAuthorizationService(IAuthorizationService* decorated /* takes ownership */,
+    CachedAuthorizationService(BaseAuthorizationService* decorated /* takes ownership */,
                                ICacheFactory& factory);
 
-    virtual bool IsGranted(unsigned int& validity,
-                           OrthancPluginHttpMethod method,
-                           const AccessedResource& access,
-                           const Token& token,
-                           const std::string& tokenValue) ORTHANC_OVERRIDE;
-    
-    virtual bool IsGranted(unsigned int& validity,
-                           OrthancPluginHttpMethod method,
-                           const AccessedResource& access) ORTHANC_OVERRIDE;
- 
-    virtual bool GetUserProfile(Json::Value& profile /* out */,
-                                const Token& token,
-                                const std::string& tokenValue);
  };
 }

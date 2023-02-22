@@ -124,6 +124,15 @@ add_definitions(
   -DORTHANC_ENABLE_LOGGING_PLUGIN=1
   )
 
+set(ADDITIONAL_RESOURCES
+  DEFAULT_CONFIGURATION  ${CMAKE_SOURCE_DIR}/Plugin/DefaultConfiguration.json
+  )
+
+  EmbedResources(
+  --no-upcase-check
+  ${ADDITIONAL_RESOURCES}
+  )
+
 add_library(OrthancAuthorization SHARED
   ${CMAKE_SOURCE_DIR}/Plugin/AccessedResource.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/AssociativeArray.cpp
@@ -134,6 +143,7 @@ add_library(OrthancAuthorization SHARED
   ${CMAKE_SOURCE_DIR}/Plugin/Enumerations.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/MemoryCache.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/OrthancResource.cpp
+  ${CMAKE_SOURCE_DIR}/Plugin/PermissionParser.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/Plugin.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/ResourceHierarchyCache.cpp
   ${CMAKE_SOURCE_DIR}/Plugin/Token.cpp

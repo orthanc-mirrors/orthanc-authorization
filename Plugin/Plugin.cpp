@@ -20,6 +20,7 @@
 #include "DefaultAuthorizationParser.h"
 #include "CachedAuthorizationService.h"
 #include "AuthorizationWebService.h"
+#include "PermissionParser.h"
 #include "MemoryCache.h"
 
 #include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
@@ -27,16 +28,26 @@
 #include <Compatibility.h>  // For std::unique_ptr<>
 #include <Logging.h>
 #include <Toolbox.h>
+#include <EmbeddedResources.h>
 
 
 // Configuration of the authorization plugin
 static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
+static std::unique_ptr<OrthancPlugins::PermissionParser> permissionParser_;
 static std::set<std::string> uncheckedResources_;
 static std::list<std::string> uncheckedFolders_;
 static std::set<OrthancPlugins::Token> tokens_;
 static std::set<OrthancPlugins::AccessLevel> uncheckedLevels_;
 
+
+static std::string JoinStrings(const std::set<std::string>& values)
+{
+  std::string out;
+  std::set<std::string> copy = values;    // TODO: remove after upgrading to OrthancFramework 1.11.3+
+  Orthanc::Toolbox::JoinStrings(out, copy, "|");
+  return out;
+}
 
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
@@ -68,6 +79,52 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       }
     }
 
+    unsigned int validity;  // ignored
+
+    // check if the user permissions grants him access
+    if (permissionParser_.get() != NULL &&
+      authorizationService_.get() != NULL) 
+      // && uncheckedLevels_.find(OrthancPlugins::AccessLevel_UserPermissions) == uncheckedLevels_.end())
+    {
+      std::set<std::string> requiredPermissions;
+      std::string matchedPattern;
+      if (permissionParser_->Parse(requiredPermissions, matchedPattern, method, uri))
+      {
+        if (tokens_.empty())
+        {
+          LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "'";
+          if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
+          {
+            return 1;
+          }
+        }
+        else
+        {
+          OrthancPlugins::AssociativeArray headers
+            (headersCount, headersKeys, headersValues, false);
+
+          // Loop over all the authorization tokens stored in the HTTP
+          // headers, until finding one that is granted
+          for (std::set<OrthancPlugins::Token>::const_iterator
+                  token = tokens_.begin(); token != tokens_.end(); ++token)
+          {
+            std::string value;
+
+            // we consider that users only works with HTTP Header tokens, not tokens from GetArgument
+            if (token->GetType() == OrthancPlugins::TokenType_HttpHeader &&
+              headers.GetValue(value, token->GetKey()))
+            {
+              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << token->GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
+              if (authorizationService_->HasUserPermission(validity, requiredPermissions, *token, value))
+              {
+                return 1;
+              }
+            }
+          }
+        }
+      }
+    }
+
     if (authorizationParser_.get() != NULL &&
         authorizationService_.get() != NULL)
     {
@@ -94,11 +151,10 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                     << " \"" << access->GetOrthancId() << "\" is allowed";
 
           bool granted = false;
-          unsigned int validity;  // ignored
 
           if (tokens_.empty())
           {
-            granted = authorizationService_->IsGranted(validity, method, *access);
+            granted = authorizationService_->IsGrantedToAnonymousUser(validity, method, *access);
           }
           else
           {
@@ -193,7 +249,7 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   {
     if (authorizationParser_.get() == NULL)
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+      return OrthancPluginErrorCode_Success;
     }
     
     if (changeType == OrthancPluginChangeType_Deleted)
@@ -285,13 +341,38 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       
       if (hasValue)
       {
-        authorizationService_->GetUserProfile(profile, *token, value);
+        unsigned int validity; // not used
+        authorizationService_->GetUserProfile(validity, profile, *token, value);
         
         OrthancPlugins::AnswerJson(profile, output);
         break;
       }
     }
 
+  }
+}
+
+void MergeJson(Json::Value &a, const Json::Value &b) {                                                                        
+                                                                                                                  
+  if (!a.isObject() || !b.isObject())
+  {
+    return;
+  }
+
+  Json::Value::Members members = b.getMemberNames();
+
+  for (size_t i = 0; i < members.size(); i++)
+  {
+    std::string key = members[i];
+    
+    if (!a[key].isNull() && a[key].type() == Json::objectValue && b[key].type() == Json::objectValue)
+    {
+      MergeJson(a[key], b[key]);
+    } 
+    else
+    {
+      a[key] = b[key];
+    }
   }
 }
 
@@ -322,46 +403,60 @@ extern "C"
 
     try
     {
-      OrthancPlugins::OrthancConfiguration general;
+      static const char* PLUGIN_SECTION = "Authorization";
 
-      static const char* SECTION = "Authorization";
-      if (general.IsSection(SECTION))
+      OrthancPlugins::OrthancConfiguration orthancFullConfiguration;
+
+      // read default configuration
+      std::string defaultConfigurationFileContent;
+      Orthanc::EmbeddedResources::GetFileResource(defaultConfigurationFileContent, Orthanc::EmbeddedResources::DEFAULT_CONFIGURATION);
+      Json::Value pluginJsonDefaultConfiguration;
+      OrthancPlugins::ReadJsonWithoutComments(pluginJsonDefaultConfiguration, defaultConfigurationFileContent);
+      Json::Value pluginJsonConfiguration = pluginJsonDefaultConfiguration[PLUGIN_SECTION];
+
+      OrthancPlugins::OrthancConfiguration pluginProvidedConfiguration;
+
+      if (orthancFullConfiguration.IsSection(PLUGIN_SECTION))
       {
-        OrthancPlugins::OrthancConfiguration configuration;
-        general.GetSection(configuration, "Authorization");
+        // get the configuration provided by the user
+        orthancFullConfiguration.GetSection(pluginProvidedConfiguration, PLUGIN_SECTION);
+
+        // merge it with the default configuration.  This is a way to apply the all default values in a single step
+        MergeJson(pluginJsonConfiguration, pluginProvidedConfiguration.GetJson());
+
+        // recreate a OrthancConfiguration object from the merged configuration
+        OrthancPlugins::OrthancConfiguration pluginConfiguration(pluginJsonConfiguration, PLUGIN_SECTION);
 
         // TODO - The size of the caches is set to 10,000 items. Maybe add a configuration option?
         OrthancPlugins::MemoryCache::Factory factory(10000);
 
+        std::string dicomWebRoot = "/dicom-web/";
+        std::string oe2Root = "/ui/";
+
+        if (orthancFullConfiguration.IsSection("DicomWeb"))
         {
-          std::string root;
+          OrthancPlugins::OrthancConfiguration dicomWeb;
+          dicomWeb.GetSection(orthancFullConfiguration, "DicomWeb");
+          dicomWebRoot = dicomWeb.GetStringValue("Root", "/dicom-web/");
+        }
 
-          if (configuration.IsSection("DicomWeb"))
-          {
-            OrthancPlugins::OrthancConfiguration dicomWeb;
-            dicomWeb.GetSection(configuration, "DicomWeb");
-            root = dicomWeb.GetStringValue("Root", "");
-          }
-
-          if (root.empty())
-          {
-            root = "/dicom-web/";
-          } 
-
-          authorizationParser_.reset
-            (new OrthancPlugins::DefaultAuthorizationParser(factory, root));
+        if (orthancFullConfiguration.IsSection("OrthancExplorer2"))
+        {
+          OrthancPlugins::OrthancConfiguration oe2;
+          oe2.GetSection(orthancFullConfiguration, "OrthancExplorer2");
+          oe2Root = oe2.GetStringValue("Root", "/ui/");
         }
 
         std::list<std::string> tmp;
 
-        configuration.LookupListOfStrings(tmp, "TokenHttpHeaders", true);
+        pluginConfiguration.LookupListOfStrings(tmp, "TokenHttpHeaders", true);
         for (std::list<std::string>::const_iterator
                it = tmp.begin(); it != tmp.end(); ++it)
         {
           tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, *it));
         }
 
-        configuration.LookupListOfStrings(tmp, "TokenGetArguments", true);
+        pluginConfiguration.LookupListOfStrings(tmp, "TokenGetArguments", true);
 
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 3, 0)  
         for (std::list<std::string>::const_iterator
@@ -379,22 +474,49 @@ extern "C"
         }
 #endif
 
-        configuration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
-        configuration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
+        pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
+        pluginConfiguration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
 
         std::string url;
 
         static const char* WEB_SERVICE = "WebService";
-        if (!configuration.LookupStringValue(url, WEB_SERVICE))
+        if (!pluginConfiguration.LookupStringValue(url, WEB_SERVICE))
         {
-          throw Orthanc::OrthancException(
-            Orthanc::ErrorCode_BadFileFormat,
-            "Missing mandatory option \"" + std::string(WEB_SERVICE) +
-            "\" for the authorization plugin");
+          LOG(WARNING) << "Authorization plugin: no \"" << WEB_SERVICE << "\" configuration provided.  Will not perform resource based authorization.";
+        }
+        else
+        {
+          authorizationParser_.reset
+            (new OrthancPlugins::DefaultAuthorizationParser(factory, dicomWebRoot));
+        }
+
+        static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
+        static const char* PERMISSIONS = "Permissions";        
+        if (!pluginConfiguration.LookupStringValue(url, WEB_SERVICE_USER_PROFILE))
+        {
+          LOG(WARNING) << "Authorization plugin: no \"" << WEB_SERVICE_USER_PROFILE << "\" configuration provided.  Will not perform user-permissions based authorization.";
+        }
+        else
+        {
+          if (!pluginConfiguration.GetJson().isMember(PERMISSIONS))
+          {
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: Missing required \"" + std::string(PERMISSIONS) + 
+              "\" option since you have defined the \"" + std::string(WEB_SERVICE_USER_PROFILE) + "\" option");
+          }
+          permissionParser_.reset
+            (new OrthancPlugins::PermissionParser(dicomWebRoot, oe2Root));
+
+          permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS]);
+        }
+
+        if (authorizationParser_.get() == NULL && permissionParser_.get() == NULL)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: Missing one of the mandatory option \"" + std::string(WEB_SERVICE) +
+            "\" or \"" + std::string(WEB_SERVICE_USER_PROFILE) + "\"");
         }
 
         std::set<std::string> standardConfigurations;
-        if (configuration.LookupSetOfStrings(standardConfigurations, "StandardConfigurations", false))
+        if (pluginConfiguration.LookupSetOfStrings(standardConfigurations, "StandardConfigurations", false))
         {
           if (standardConfigurations.find("osimis-web-viewer") != standardConfigurations.end())
           {
@@ -419,6 +541,7 @@ extern "C"
           {
             uncheckedFolders_.push_back("/ui/app/");
             uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
+            uncheckedResources_.insert("/ui/api/configuration");
             uncheckedResources_.insert("/auth/user-profile");
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
@@ -428,7 +551,7 @@ extern "C"
         }
 
         std::string checkedLevelString;
-        if (configuration.LookupStringValue(checkedLevelString, "CheckedLevel"))
+        if (pluginConfiguration.LookupStringValue(checkedLevelString, "CheckedLevel"))
         {
           OrthancPlugins::AccessLevel checkedLevel = OrthancPlugins::StringToAccessLevel(checkedLevelString);
           if (checkedLevel == OrthancPlugins::AccessLevel_Instance) 
@@ -457,7 +580,7 @@ extern "C"
           }
         }
 
-        if (configuration.LookupListOfStrings(tmp, "UncheckedLevels", false))
+        if (pluginConfiguration.LookupListOfStrings(tmp, "UncheckedLevels", false))
         {
           if (uncheckedLevels_.size() == 0)
           {
@@ -477,20 +600,20 @@ extern "C"
         std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(url));
 
         std::string webServiceIdentifier;
-        if (configuration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
+        if (pluginConfiguration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
         {
           webService->SetIdentifier(webServiceIdentifier);
         }
 
         std::string webServiceUsername;
         std::string webServicePassword;
-        if (configuration.LookupStringValue(webServiceUsername, "WebServiceUsername") && configuration.LookupStringValue(webServicePassword, "WebServicePassword"))
+        if (pluginConfiguration.LookupStringValue(webServiceUsername, "WebServiceUsername") && pluginConfiguration.LookupStringValue(webServicePassword, "WebServicePassword"))
         {
           webService->SetCredentials(webServiceUsername, webServicePassword);
         }
 
         std::string webServiceUserProfileUrl;
-        if (configuration.LookupStringValue(webServiceUserProfileUrl, "WebServiceUserProfileUrl"))
+        if (pluginConfiguration.LookupStringValue(webServiceUserProfileUrl, "WebServiceUserProfileUrl"))
         {
           webService->SetUserProfileUrl(webServiceUserProfileUrl);
         }
@@ -510,7 +633,7 @@ extern "C"
       }
       else
       {
-        LOG(WARNING) << "No section \"" << SECTION << "\" in the configuration file, "
+        LOG(WARNING) << "No section \"" << PLUGIN_SECTION << "\" in the configuration file, "
                      << "the authorization plugin is disabled";
       }
     }

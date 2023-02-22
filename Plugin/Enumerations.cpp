@@ -79,7 +79,7 @@ namespace OrthancPlugins
     }
     else
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange, std::string("Invalid access level: ") + tmp);
     }
   }
 }

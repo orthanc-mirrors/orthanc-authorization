@@ -41,12 +41,24 @@ namespace OrthancPlugins
                            const Token& token,
                            const std::string& tokenValue) = 0;
     
-    virtual bool IsGranted(unsigned int& validity /* out */,
-                           OrthancPluginHttpMethod method,
-                           const AccessedResource& access) = 0;
+    virtual bool IsGrantedToAnonymousUser(unsigned int& validity /* out */,
+                                          OrthancPluginHttpMethod method,
+                                          const AccessedResource& access) = 0;
 
-    virtual bool GetUserProfile(Json::Value& profile /* out */,
+    virtual bool GetUserProfile(unsigned int& validity /* out */,
+                                Json::Value& profile /* out */,
                                 const Token& token,
                                 const std::string& tokenValue) = 0;
+
+    virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
+                                         Json::Value& profile /* out */) = 0;
+
+    virtual bool HasUserPermission(unsigned int& validity /* out */,
+                                   const std::set<std::string>& anyOfPermissions,
+                                   const Token& token,
+                                   const std::string& tokenValue) = 0;
+
+    virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
+                                            const std::set<std::string>& anyOfPermissions) = 0;
   };
 }

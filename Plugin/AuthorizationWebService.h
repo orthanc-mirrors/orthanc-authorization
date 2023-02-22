@@ -18,11 +18,12 @@
 
 #pragma once
 
-#include "IAuthorizationService.h"
+#include "BaseAuthorizationService.h"
+#include <Compatibility.h>
 
 namespace OrthancPlugins
 {
-  class AuthorizationWebService : public IAuthorizationService
+  class AuthorizationWebService : public BaseAuthorizationService
   {
   private:
     std::string url_;
@@ -31,12 +32,23 @@ namespace OrthancPlugins
     std::string identifier_;
     std::string userProfileUrl_;
 
-    bool IsGrantedInternal(unsigned int& validity,
+  protected:
+    virtual bool IsGrantedInternal(unsigned int& validity,
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access,
                            const Token* token,
-                           const std::string& tokenValue);
+                           const std::string& tokenValue) ORTHANC_OVERRIDE;
     
+    virtual bool GetUserProfileInternal(unsigned int& validity,
+                                Json::Value& profile /* out */,
+                                const Token* token,
+                                const std::string& tokenValue) ORTHANC_OVERRIDE;
+
+    virtual bool HasUserPermissionInternal(unsigned int& validity,
+                                   const std::string& permission,
+                                   const Token* token,
+                                   const std::string& tokenValue) ORTHANC_OVERRIDE;
+  
   public:
     AuthorizationWebService(const std::string& url) :
       url_(url)
@@ -49,26 +61,5 @@ namespace OrthancPlugins
     void SetIdentifier(const std::string& webServiceIdentifier);
 
     void SetUserProfileUrl(const std::string& url);
-
-    virtual bool IsGranted(unsigned int& validity,
-                           OrthancPluginHttpMethod method,
-                           const AccessedResource& access,
-                           const Token& token,
-                           const std::string& tokenValue)
-    {
-      return IsGrantedInternal(validity, method, access, &token, tokenValue);
-    }
-    
-    virtual bool IsGranted(unsigned int& validity,
-                           OrthancPluginHttpMethod method,
-                           const AccessedResource& access)
-    {
-      return IsGrantedInternal(validity, method, access, NULL, "");
-    }
-
-    virtual bool GetUserProfile(Json::Value& profile /* out */,
-                                const Token& token,
-                                const std::string& tokenValue);
-
   };
 }

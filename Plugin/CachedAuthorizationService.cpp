@@ -19,6 +19,7 @@
 #include "CachedAuthorizationService.h"
 
 #include <OrthancException.h>
+#include <Toolbox.h>
 
 #include <boost/lexical_cast.hpp>
 
@@ -35,7 +36,15 @@ namespace OrthancPlugins
   }
     
 
-  CachedAuthorizationService::CachedAuthorizationService(IAuthorizationService* decorated /* takes ownership */,
+  std::string CachedAuthorizationService::ComputeKey(const std::string& permission,
+                                                     const Token& token,
+                                                     const std::string& tokenValue) const
+  {
+    return (permission + "|" + token.GetKey() + "|" + tokenValue);
+  }
+
+
+  CachedAuthorizationService::CachedAuthorizationService(BaseAuthorizationService* decorated /* takes ownership */,
                                                          ICacheFactory& factory) :
     decorated_(decorated),
     cache_(factory.Create())
@@ -47,15 +56,15 @@ namespace OrthancPlugins
   }
 
 
-  bool CachedAuthorizationService::IsGranted(unsigned int& validity,
-                                             OrthancPluginHttpMethod method,
-                                             const AccessedResource& access,
-                                             const Token& token,
-                                             const std::string& tokenValue)
+  bool CachedAuthorizationService::IsGrantedInternal(unsigned int& validity,
+                                                     OrthancPluginHttpMethod method,
+                                                     const AccessedResource& access,
+                                                     const Token* token,
+                                                     const std::string& tokenValue)
   {
     assert(decorated_.get() != NULL);
 
-    std::string key = ComputeKey(method, access, token, tokenValue);
+    std::string key = ComputeKey(method, access, *token, tokenValue);
     std::string value;
 
     if (cache_->Retrieve(value, key))
@@ -64,7 +73,7 @@ namespace OrthancPlugins
       return (value == "1");
     }        
         
-    bool granted = decorated_->IsGranted(validity, method, access, token, tokenValue);
+    bool granted = decorated_->IsGrantedInternal(validity, method, access, token, tokenValue);
 
     if (granted)
     {
@@ -87,21 +96,53 @@ namespace OrthancPlugins
   }
 
   
-  bool CachedAuthorizationService::IsGranted(unsigned int& validity,
-                                             OrthancPluginHttpMethod method,
-                                             const AccessedResource& access)
+  bool CachedAuthorizationService::GetUserProfileInternal(unsigned int& validity,
+                                                          Json::Value& profile /* out */,
+                                                          const Token* token,
+                                                          const std::string& tokenValue)
+  {
+    // no cache used when retrieving the full user profile
+    return decorated_->GetUserProfileInternal(validity, profile, token, tokenValue);
+  }
+
+  bool CachedAuthorizationService::HasUserPermissionInternal(unsigned int& validity,
+                                                             const std::string& permission,
+                                                             const Token* token,
+                                                             const std::string& tokenValue)
   {
     assert(decorated_.get() != NULL);
 
-    // The cache is not used if no token is available
-    return decorated_->IsGranted(validity, method, access);
+    std::string key = ComputeKey(permission, *token, tokenValue);
+    std::string value;
+
+    if (cache_->Retrieve(value, key))
+    {
+      // Return the previously cached value
+      return (value == "1");
+    }        
+        
+    bool granted = decorated_->HasUserPermissionInternal(validity, permission, token, tokenValue);
+
+    if (granted)
+    {
+      if (validity > 0)
+      {
+        cache_->Store(key, "1", validity);
+      }
+        
+      return true;
+    }
+    else
+    {
+      if (validity > 0)
+      {
+        cache_->Store(key, "0", validity);
+      }
+        
+      return false;
+    }
   }
 
-  bool CachedAuthorizationService::GetUserProfile(Json::Value& profile /* out */,
-                                                  const Token& token,
-                                                  const std::string& tokenValue)
-  {
-    return decorated_->GetUserProfile(profile, token, tokenValue);
-  }
+
 
 }

@@ -1,0 +1,71 @@
+{
+    "Authorization" : {
+        // The URL of the auth webservice implementing resource level authorization (optional if not implementing resource based permissions)
+        // "WebService" : "http://change-me:8000/validate",
+        
+        // The URL of the auth webservice implementing resource level authorization (optional if not implementing user-permissions)
+        // "WebServiceUserProfileUrl" : "http://change-me:8000/user-profile",
+
+        // The username and password to connect to the webservice (optional)
+        //"WebServiceUsername": "change-me",
+        //"WebServicePassword": "change-me",
+        
+        // An identifier added to the payload of each request to the auth webservice (optional)
+        //"WebServiceIdentifier": "change-me"
+
+        // The name of the HTTP headers that may contain auth tokens
+        //"TokenHttpHeaders" : [],
+        
+        // the name of the GET arguments that may contain auth tokens
+        //"TokenGetArguments" : [],
+
+        // A list of predefined configurations for well-known plugins
+        // "StandardConfigurations": [               // new in v 0.4.0
+        //     "osimis-web-viewer",
+        //     "stone-webviewer",
+        //     "orthanc-explorer-2"
+        // ],
+
+        //"UncheckedResources" : [],
+        //"UncheckedFolders" : [],
+        //"CheckedLevel" : "studies",
+        //"UncheckedLevels" : [],
+
+        // Definition of required "user-permissions".  This can be fully customized.
+        // You may define other permissions yourself as long as they mathc the permissions
+        // provided in the user-profile route implemented by the auth-service.
+        // You may test your regex in https://regex101.com/ by selecting .NET (C#) and removing the leading ^ and trailing $
+        // The default configuration is suitable for Orthanc-Explorer-2 (see TBD sample)
+        "Permissions" : [
+            // elemental browsing in OE2
+            ["post", "^/tools/find$", "all|view"],
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/(studies|series|instances)$", "all|view"],
+            ["get" , "^/instances/([a-f0-9-]+)/(tags|header)$", "all|view"],
+            ["get" , "^/statistics$", "all|view"],
+
+            // monitor jobs you have created
+            ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],
+
+            // downloads: not functional yet, we need one-time-tokens
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/archive$", "all|download"],
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/media$", "all|download"],
+
+            // interacting with peers/modalities/dicomweb
+            ["post", "^/(peers|modalities)/(.*)/store$", "all|send"],
+            ["get" , "^/(peers|modalities)$", "all|send|q-r-remote-modalities"],
+            ["post", "^/modalities/(.*)/echo$", "all|send|q-r-remote-modalities"],
+            ["post", "^/modalities/(.*)/query$", "all|q-r-remote-modalities"],
+            ["get", "^/queries/([a-f0-9-]+)/answers$", "all|q-r-remote-modalities"],
+            ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
+            ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
+
+            // upload
+            ["post", "^/instances$", "all|upload"],
+
+            // modifications/anonymization
+            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/modify(.*)$", "all|modify"],
+            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"]
+
+        ]
+    }
+}

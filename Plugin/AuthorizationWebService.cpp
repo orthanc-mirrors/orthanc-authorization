@@ -23,9 +23,15 @@
 #include <Logging.h>
 #include <Toolbox.h>
 #include <HttpClient.h>
+#include <algorithm>
 
 namespace OrthancPlugins
 {
+  static const char* GRANTED = "granted";
+  static const char* VALIDITY = "validity";
+  static const char* PERMISSIONS = "permissions";
+
+
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
                                                   OrthancPluginHttpMethod method,
                                                   const AccessedResource& access,
@@ -118,9 +124,6 @@ namespace OrthancPlugins
     Json::Value answer;
     authClient.ApplyAndThrowException(answer);
 
-    static const char* GRANTED = "granted";
-    static const char* VALIDITY = "validity";
-      
     if (answer.type() != Json::objectValue ||
         !answer.isMember(GRANTED) ||
         answer[GRANTED].type() != Json::booleanValue ||
@@ -165,9 +168,10 @@ namespace OrthancPlugins
     identifier_ = webServiceIdentifier;
   }
 
-  bool AuthorizationWebService::GetUserProfile(Json::Value& profile /* out */,
-                                               const Token& token,
-                                               const std::string& tokenValue)
+  bool AuthorizationWebService::GetUserProfileInternal(unsigned int& validity,
+                                                       Json::Value& profile /* out */,
+                                                       const Token* token,
+                                                       const std::string& tokenValue)
   {
     if (userProfileUrl_.empty())
     {
@@ -184,8 +188,11 @@ namespace OrthancPlugins
 
     Json::Value body;
 
-    body["token-key"] = token.GetKey();
-    body["token-value"] = tokenValue;
+    if (token != NULL)
+    {
+      body["token-key"] = token->GetKey();
+      body["token-value"] = tokenValue;
+    }
 
     if (!identifier_.empty())
     {
@@ -209,12 +216,57 @@ namespace OrthancPlugins
       authClient.SetTimeout(10);
 
       authClient.ApplyAndThrowException(profile);
+
+      if (profile.isMember("validity"))
+      {
+        validity = profile["validity"].asInt();
+      }
+      else
+      {
+        validity = 0;
+      }
+
       return true;
     }
     catch (Orthanc::OrthancException& ex)
     {
       return false;
     }
+  }
+
+  bool AuthorizationWebService::HasUserPermissionInternal(unsigned int& validity,
+                                                          const std::string& permission,
+                                                          const Token* token,
+                                                          const std::string& tokenValue)
+  {
+    Json::Value profile;
+
+
+    if (GetUserProfileInternal(validity, profile, token, tokenValue))
+    {
+      if (profile.type() != Json::objectValue ||
+          !profile.isMember(PERMISSIONS) ||
+          !profile.isMember(VALIDITY) ||
+          profile[PERMISSIONS].type() != Json::arrayValue ||
+          profile[VALIDITY].type() != Json::intValue)
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+                                        "Syntax error in the result of the Web service");
+      }
+
+      validity = profile[VALIDITY].asUInt();
+
+      Json::Value& permissions = profile[PERMISSIONS];
+      for (Json::ArrayIndex i = 0; i < permissions.size(); ++i)
+      {
+        if (permission == permissions[i].asString())
+        {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
 }
