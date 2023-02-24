@@ -38,11 +38,11 @@ namespace OrthancPlugins
 
     std::string ComputeKey(OrthancPluginHttpMethod method,
                            const AccessedResource& access,
-                           const Token& token,
+                           const Token* token,
                            const std::string& tokenValue) const;
 
     std::string ComputeKey(const std::string& permission,
-                           const Token& token,
+                           const Token* token,
                            const std::string& tokenValue) const;
 
     virtual bool IsGrantedInternal(unsigned int& validity,
@@ -65,6 +65,34 @@ namespace OrthancPlugins
   public:
     CachedAuthorizationService(BaseAuthorizationService* decorated /* takes ownership */,
                                ICacheFactory& factory);
+
+    virtual bool HasUserProfile() const
+    {
+      return decorated_->HasUserProfile();
+    }
+
+    virtual bool HasCreateToken() const
+    {
+      return decorated_->HasCreateToken();
+    }
+
+    virtual bool HasTokenValidation() const
+    {
+      return decorated_->HasTokenValidation();
+    }
+
+    bool CreateToken(IAuthorizationService::CreatedToken& response,
+                     const std::string& tokenType, 
+                     const std::string& id, 
+                     const std::vector<IAuthorizationService::OrthancResource>& resources,
+                     const std::string& expirationDateString)
+    {
+      return decorated_->CreateToken(response,
+                                     tokenType,
+                                     id,
+                                     resources,
+                                     expirationDateString);
+    }
 
  };
 }

@@ -27,20 +27,36 @@ namespace OrthancPlugins
 {
   std::string CachedAuthorizationService::ComputeKey(OrthancPluginHttpMethod method,
                                                      const AccessedResource& access,
-                                                     const Token& token,
+                                                     const Token* token,
                                                      const std::string& tokenValue) const
   {
-    return (boost::lexical_cast<std::string>(method) + "|" +
-            boost::lexical_cast<std::string>(access.GetLevel()) + "|" +
-            access.GetOrthancId() + "|" + token.GetKey() + "|" + tokenValue);
+    if (token != NULL)
+    {
+      return (boost::lexical_cast<std::string>(method) + "|" +
+              boost::lexical_cast<std::string>(access.GetLevel()) + "|" +
+              access.GetOrthancId() + "|" + token->GetKey() + "|" + tokenValue);
+    }
+    else
+    {
+      return (boost::lexical_cast<std::string>(method) + "|" +
+              boost::lexical_cast<std::string>(access.GetLevel()) + "|" +
+              access.GetOrthancId() + "|anonymous");
+    }
   }
     
 
   std::string CachedAuthorizationService::ComputeKey(const std::string& permission,
-                                                     const Token& token,
+                                                     const Token* token,
                                                      const std::string& tokenValue) const
   {
-    return (permission + "|" + token.GetKey() + "|" + tokenValue);
+    if (token != NULL)
+    {
+      return (permission + "|" + token->GetKey() + "|" + tokenValue);
+    }
+    else
+    {
+      return (permission + "|anonymous");
+    }
   }
 
 
@@ -64,7 +80,7 @@ namespace OrthancPlugins
   {
     assert(decorated_.get() != NULL);
 
-    std::string key = ComputeKey(method, access, *token, tokenValue);
+    std::string key = ComputeKey(method, access, token, tokenValue);
     std::string value;
 
     if (cache_->Retrieve(value, key))
@@ -112,7 +128,7 @@ namespace OrthancPlugins
   {
     assert(decorated_.get() != NULL);
 
-    std::string key = ComputeKey(permission, *token, tokenValue);
+    std::string key = ComputeKey(permission, token, tokenValue);
     std::string value;
 
     if (cache_->Retrieve(value, key))

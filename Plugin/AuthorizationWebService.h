@@ -26,11 +26,12 @@ namespace OrthancPlugins
   class AuthorizationWebService : public BaseAuthorizationService
   {
   private:
-    std::string url_;
     std::string username_;
     std::string password_;
     std::string identifier_;
     std::string userProfileUrl_;
+    std::string tokenValidationUrl_;
+    std::string tokenCreationBaseUrl_;
 
   protected:
     virtual bool IsGrantedInternal(unsigned int& validity,
@@ -50,8 +51,12 @@ namespace OrthancPlugins
                                    const std::string& tokenValue) ORTHANC_OVERRIDE;
   
   public:
-    AuthorizationWebService(const std::string& url) :
-      url_(url)
+    AuthorizationWebService(const std::string& tokenValidationUrl, 
+                            const std::string& tokenCreationBaseUrl, 
+                            const std::string& userProfileUrl) :
+      userProfileUrl_(userProfileUrl),
+      tokenValidationUrl_(tokenValidationUrl),
+      tokenCreationBaseUrl_(tokenCreationBaseUrl)
     {
     }
 
@@ -60,6 +65,26 @@ namespace OrthancPlugins
 
     void SetIdentifier(const std::string& webServiceIdentifier);
 
-    void SetUserProfileUrl(const std::string& url);
+    virtual bool HasUserProfile() const
+    {
+      return !userProfileUrl_.empty();
+    }
+
+    virtual bool HasCreateToken() const
+    {
+      return !tokenCreationBaseUrl_.empty();
+    }
+
+    virtual bool HasTokenValidation() const
+    {
+      return !tokenValidationUrl_.empty();
+    }
+
+    virtual bool CreateToken(IAuthorizationService::CreatedToken& response,
+                             const std::string& tokenType, 
+                             const std::string& id, 
+                             const std::vector<IAuthorizationService::OrthancResource>& resources,
+                             const std::string& expirationDateString) ORTHANC_OVERRIDE;
+
   };
 }

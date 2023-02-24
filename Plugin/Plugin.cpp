@@ -49,6 +49,19 @@ static std::string JoinStrings(const std::set<std::string>& values)
   return out;
 }
 
+struct TokenAndValue
+{
+  const OrthancPlugins::Token& token;
+  std::string value;
+
+  TokenAndValue(const OrthancPlugins::Token& token, const std::string& value) :
+    token(token),
+    value(value)
+  {
+  }
+};
+
+
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
                                   const char *ip,
@@ -61,6 +74,8 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 {
   try
   {
+    unsigned int validity;  // ignored
+
     if (method == OrthancPluginHttpMethod_Get)
     {
       // Allow GET accesses to static resources
@@ -79,7 +94,35 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       }
     }
 
-    unsigned int validity;  // ignored
+    OrthancPlugins::AssociativeArray headers(headersCount, headersKeys, headersValues, false);
+    OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
+
+    std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+
+    for (std::set<OrthancPlugins::Token>::const_iterator token = tokens_.begin(); token != tokens_.end(); ++token)
+    {
+      std::string value;
+
+      bool hasValue = false;
+      switch (token->GetType())
+      {
+        case OrthancPlugins::TokenType_HttpHeader:
+          hasValue = headers.GetValue(value, token->GetKey());
+          break;
+
+        case OrthancPlugins::TokenType_GetArgument:
+          hasValue = getArguments.GetValue(value, token->GetKey());
+          break;
+
+        default:
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+      }
+      
+      if (hasValue)
+      {
+        authTokens.push_back(TokenAndValue(*token, value));
+      }
+    }
 
     // check if the user permissions grants him access
     if (permissionParser_.get() != NULL &&
@@ -90,7 +133,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       std::string matchedPattern;
       if (permissionParser_->Parse(requiredPermissions, matchedPattern, method, uri))
       {
-        if (tokens_.empty())
+        if (authTokens.empty())
         {
           LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "'";
           if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
@@ -100,25 +143,12 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         }
         else
         {
-          OrthancPlugins::AssociativeArray headers
-            (headersCount, headersKeys, headersValues, false);
-
-          // Loop over all the authorization tokens stored in the HTTP
-          // headers, until finding one that is granted
-          for (std::set<OrthancPlugins::Token>::const_iterator
-                  token = tokens_.begin(); token != tokens_.end(); ++token)
+          for (size_t i = 0; i < authTokens.size(); ++i)
           {
-            std::string value;
-
-            // we consider that users only works with HTTP Header tokens, not tokens from GetArgument
-            if (token->GetType() == OrthancPlugins::TokenType_HttpHeader &&
-              headers.GetValue(value, token->GetKey()))
+            LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
+            if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].token, authTokens[i].value))
             {
-              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << token->GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
-              if (authorizationService_->HasUserPermission(validity, requiredPermissions, *token, value))
-              {
-                return 1;
-              }
+              return 1;
             }
           }
         }
@@ -130,7 +160,6 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     {
       // Parse the resources that are accessed through this URI
       OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
-      OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
 
       if (!authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
       {
@@ -152,39 +181,16 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 
           bool granted = false;
 
-          if (tokens_.empty())
+          if (authTokens.empty())
           {
             granted = authorizationService_->IsGrantedToAnonymousUser(validity, method, *access);
           }
           else
           {
-            OrthancPlugins::AssociativeArray headers
-              (headersCount, headersKeys, headersValues, false);
-
-            // Loop over all the authorization tokens stored in the HTTP
-            // headers, until finding one that is granted
-            for (std::set<OrthancPlugins::Token>::const_iterator
-                   token = tokens_.begin(); token != tokens_.end(); ++token)
+            // Loop over all the authorization tokens in the request until finding one that is granted
+            for (size_t i = 0; i < authTokens.size(); ++i)
             {
-              std::string value;
-
-              bool hasValue = false;
-              switch (token->GetType())
-              {
-                case OrthancPlugins::TokenType_HttpHeader:
-                  hasValue = headers.GetValue(value, token->GetKey());
-                  break;
-
-                case OrthancPlugins::TokenType_GetArgument:
-                  hasValue = getArguments.GetValue(value, token->GetKey());
-                  break;
-
-                default:
-                  throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
-              }
-              
-              if (hasValue &&
-                  authorizationService_->IsGranted(validity, method, *access, *token, value))
+              if (authorizationService_->IsGranted(validity, method, *access, authTokens[i].token, authTokens[i].value))
               {
                 granted = true;
                 break;
@@ -296,6 +302,103 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
+void CreateToken(OrthancPluginRestOutput* output,
+                 const char* /*url*/,
+                 const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Put)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "PUT");
+  }
+  else
+  {
+    // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
+    // Since the route contains the tokenType, we can allow/forbid creating them based on the url
+
+    // simply forward the request to the auth-service
+    std::string tokenType;
+    if (request->groupsCount == 1)
+    {
+      tokenType = request->groups[0];
+    }
+    else
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+    }
+
+    // convert from Orthanc flavored API to WebService API
+    Json::Value body;
+    if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+    }
+
+    std::string id;
+    std::vector<OrthancPlugins::IAuthorizationService::OrthancResource> resources;
+    std::string expirationDateString;
+
+    if (body.isMember("ID"))
+    {
+      id = body["ID"].asString();
+    }
+
+    for (Json::ArrayIndex i = 0; i < body["Resources"].size(); ++i)
+    {
+      const Json::Value& jsonResource = body["Resources"][i];
+      OrthancPlugins::IAuthorizationService::OrthancResource resource;
+
+      if (jsonResource.isMember("DicomUid"))
+      {
+        resource.dicomUid = jsonResource["DicomUid"].asString();
+      }
+
+      if (jsonResource.isMember("OrthancId"))
+      {
+        resource.orthancId = jsonResource["OrthancId"].asString();
+      }
+
+      if (jsonResource.isMember("Url"))
+      {
+        resource.url = jsonResource["Url"].asString();
+      }
+
+      resource.level = jsonResource["Level"].asString();
+      resources.push_back(resource);
+    }
+
+    if (body.isMember("ExpirationDate"))
+    {
+      expirationDateString = body["ExpirationDate"].asString();
+    }
+
+    OrthancPlugins::IAuthorizationService::CreatedToken createdToken;
+    if (authorizationService_->CreateToken(createdToken,
+                                           tokenType,
+                                           id,
+                                           resources,
+                                           expirationDateString))
+    {
+      Json::Value createdJsonToken;
+      createdJsonToken["Token"] = createdToken.token;
+      
+      if (!createdToken.url.empty())
+      {
+        createdJsonToken["Url"] = createdToken.url;
+      }
+      else
+      {
+        createdJsonToken["Url"] = Json::nullValue;
+      }
+
+      OrthancPlugins::AnswerJson(createdJsonToken, output);
+    }
+    
+
+  }
+}
+
 void GetUserProfile(OrthancPluginRestOutput* output,
                     const char* /*url*/,
                     const OrthancPluginHttpRequest* request)
@@ -313,7 +416,6 @@ void GetUserProfile(OrthancPluginRestOutput* output,
 
     OrthancPlugins::AssociativeArray getArguments
       (request->getCount, request->getKeys, request->getValues, true);
-
 
     // Loop over all the authorization tokens stored in the HTTP
     // headers, until finding one that is granted
@@ -477,42 +579,78 @@ extern "C"
         pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
         pluginConfiguration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
 
-        std::string url;
+        std::string urlTokenValidation;
+        std::string urlTokenCreationBase;
+        std::string urlUserProfile;
+        std::string urlRoot;
 
-        static const char* WEB_SERVICE = "WebService";
-        if (!pluginConfiguration.LookupStringValue(url, WEB_SERVICE))
+        static const char* WEB_SERVICE_ROOT = "WebServiceRootUrl";
+        static const char* WEB_SERVICE_TOKEN_VALIDATION = "WebServiceTokenValidationUrl";
+        static const char* WEB_SERVICE_TOKEN_CREATION_BASE = "WebServiceTokenCreationBaseUrl";
+        static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
+        static const char* WEB_SERVICE_TOKEN_VALIDATION_LEGACY = "WebService";
+        if (pluginConfiguration.LookupStringValue(urlRoot, WEB_SERVICE_ROOT))
         {
-          LOG(WARNING) << "Authorization plugin: no \"" << WEB_SERVICE << "\" configuration provided.  Will not perform resource based authorization.";
+          urlTokenValidation = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/validate");
+          urlTokenCreationBase = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/");
+          urlUserProfile = Orthanc::Toolbox::JoinUri(urlRoot, "/user/get-profile");
         }
-        else
+        else 
         {
+          pluginConfiguration.LookupStringValue(urlTokenValidation, WEB_SERVICE_TOKEN_VALIDATION);
+          if (urlTokenValidation.empty())
+          {
+            pluginConfiguration.LookupStringValue(urlTokenValidation, WEB_SERVICE_TOKEN_VALIDATION_LEGACY);
+          }
+
+          pluginConfiguration.LookupStringValue(urlTokenCreationBase, WEB_SERVICE_TOKEN_CREATION_BASE);
+          pluginConfiguration.LookupStringValue(urlUserProfile, WEB_SERVICE_USER_PROFILE);
+        }
+
+        if (!urlTokenValidation.empty())
+        {
+          LOG(WARNING) << "Authorization plugin: url defined for Token Validation: " << urlTokenValidation;
           authorizationParser_.reset
             (new OrthancPlugins::DefaultAuthorizationParser(factory, dicomWebRoot));
         }
-
-        static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
-        static const char* PERMISSIONS = "Permissions";        
-        if (!pluginConfiguration.LookupStringValue(url, WEB_SERVICE_USER_PROFILE))
-        {
-          LOG(WARNING) << "Authorization plugin: no \"" << WEB_SERVICE_USER_PROFILE << "\" configuration provided.  Will not perform user-permissions based authorization.";
-        }
         else
         {
+          LOG(WARNING) << "Authorization plugin: no url defined for Token Validation";
+        }
+
+        if (!urlUserProfile.empty())
+        {
+          LOG(WARNING) << "Authorization plugin: url defined for User Profile: " << urlUserProfile;
+          
+          static const char* PERMISSIONS = "Permissions";        
           if (!pluginConfiguration.GetJson().isMember(PERMISSIONS))
           {
             throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: Missing required \"" + std::string(PERMISSIONS) + 
-              "\" option since you have defined the \"" + std::string(WEB_SERVICE_USER_PROFILE) + "\" option");
+              "\" option since you have defined the \"" + std::string(WEB_SERVICE_ROOT) + "\" option");
           }
           permissionParser_.reset
             (new OrthancPlugins::PermissionParser(dicomWebRoot, oe2Root));
 
           permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS]);
         }
+        else
+        {
+          LOG(WARNING) << "Authorization plugin: no url defined for User Profile";
+        }
+
+        if (!urlTokenCreationBase.empty())
+        {
+          LOG(WARNING) << "Authorization plugin: base url defined for Token Creation : " << urlTokenCreationBase;
+          // TODO Token Creation
+        }
+        else
+        {
+          LOG(WARNING) << "Authorization plugin: no base url defined for Token Creation";
+        }
 
         if (authorizationParser_.get() == NULL && permissionParser_.get() == NULL)
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: Missing one of the mandatory option \"" + std::string(WEB_SERVICE) +
-            "\" or \"" + std::string(WEB_SERVICE_USER_PROFILE) + "\"");
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: No Token Validation or User Profile url defined");
         }
 
         std::set<std::string> standardConfigurations;
@@ -597,7 +735,9 @@ extern "C"
           }
         }
 
-        std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(url));
+        std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(urlTokenValidation,
+                                                                                                                        urlTokenCreationBase,
+                                                                                                                        urlUserProfile));
 
         std::string webServiceIdentifier;
         if (pluginConfiguration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
@@ -612,18 +752,24 @@ extern "C"
           webService->SetCredentials(webServiceUsername, webServicePassword);
         }
 
-        std::string webServiceUserProfileUrl;
-        if (pluginConfiguration.LookupStringValue(webServiceUserProfileUrl, "WebServiceUserProfileUrl"))
-        {
-          webService->SetUserProfileUrl(webServiceUserProfileUrl);
-        }
-
         authorizationService_.reset
           (new OrthancPlugins::CachedAuthorizationService
            (webService.release(), factory));
 
-        OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
-        OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user-profile", true);
+        if (!urlTokenValidation.empty())
+        {
+          OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
+        }
+        
+        if (!urlUserProfile.empty())
+        {
+          OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user/profile", true);
+        }
+
+        if (!urlTokenCreationBase.empty())
+        {
+          OrthancPlugins::RegisterRestCallback<CreateToken>("/auth/tokens/(.*)", true);
+        }
         
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)
         OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);

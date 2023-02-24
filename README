@@ -24,6 +24,49 @@ Usage details are available as part of the Orthanc Book:
 http://book.orthanc-server.com/plugins/authorization.html
 
 
+API
+---
+
+Since version 0.5.0, the plugin implements a RestA API to generate tokens
+(provided that the Web service is able to do so).
+
+Sample Orthanc Flavored API:
+
+curl -X PUT http://localhost:8042/auth/tokens/resource-instant-link -H 'Content-Type: application/json' \
+  -d '{"ID": "toto",
+       "Resources" : [{
+         "DicomUid": "1.2",
+         "OrthancId": "",
+         "Level": "study"
+       }],
+       "Type": "resource-instant-link", 
+       "ExpirationDate": "2026-12-31T11:00:00Z"}'
+
+Sample response:
+  {
+    "Token": "e148.....",
+    "Url": null
+  }
+
+The API that must be implemented by the webservice is slighlty different wrt naming conventions:
+
+curl -X PUT http://localhost:8000/tokens/resource-instant-link -H 'Content-Type: application/json' \
+  -d '{"id": "toto",
+       "resources" : [{
+         "dicom-uid": "1.2",
+         "level": "study"
+       }],
+       "type": "resource-instant-link", 
+       "expiration-date": "2026-12-31T11:00:00Z"}'
+
+Sample response:
+  {
+    "token": "e148.....",
+    "url": null
+  }
+
+
+
 Licensing
 ---------
 

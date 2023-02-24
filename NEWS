@@ -1,7 +1,12 @@
-* new "orthanc-explorer-2" StandardConfigurations
-* new "auth/user-profile" Rest API route
+* BREAKING-CHANGE: the API between the authorization plugin and the 
+  WebService has slightly changed.  Check the samples in the README (TODO).
+  - "identifier" has been renamed into "server-id"
 * new user-permission based authorization model.  This is enabled if you
   define the new "WebServiceUserProfileUrl" configuration.
+* new "orthanc-explorer-2" StandardConfigurations
+* new GET "auth/user/profile" Rest API route to retrieve user permissions
+* new PUT "auth/tokens/{token-type}" Rest API route to create tokens
+
 
 2022-11-16 - v 0.4.1
 ====================

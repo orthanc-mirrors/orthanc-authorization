@@ -1,10 +1,21 @@
 {
     "Authorization" : {
-        // The URL of the auth webservice implementing resource level authorization (optional if not implementing resource based permissions)
-        // "WebService" : "http://change-me:8000/validate",
-        
-        // The URL of the auth webservice implementing resource level authorization (optional if not implementing user-permissions)
-        // "WebServiceUserProfileUrl" : "http://change-me:8000/user-profile",
+        // The Base URL of the auth webservice.  This is an alias for all 3 next configurations:
+        // // "WebServiceUserProfileUrl" : " ROOT /user/get-profile",
+        // // "WebServiceTokenValidationUrl" : " ROOT /tokens/validate",
+        // // "WebServiceTokenCreationBaseUrl" : " ROOT /tokens/",
+        // "WebServiceRootUrl" : "http://change-me:8000/",
+
+        // The URL of the auth webservice route implementing user profile (optional)
+        // (this configuration was previously named "WebService" and its old name is still accepted
+        //  for backward compatibility)
+        // "WebServiceUserProfileUrl" : "http://change-me:8000/user/profile",
+
+        // The URL of the auth webservice route implementing resource level authorization (optional)
+        // "WebServiceTokenValidationUrl" : "http://change-me:8000/tokens/validate",
+
+        // The Base URL of the auth webservice route to create tokens (optional)
+        // "WebServiceTokenCreationBaseUrl" : "http://change-me:8000/tokens/",
 
         // The username and password to connect to the webservice (optional)
         //"WebServiceUsername": "change-me",
@@ -32,7 +43,7 @@
         //"UncheckedLevels" : [],
 
         // Definition of required "user-permissions".  This can be fully customized.
-        // You may define other permissions yourself as long as they mathc the permissions
+        // You may define other permissions yourself as long as they match the permissions
         // provided in the user-profile route implemented by the auth-service.
         // You may test your regex in https://regex101.com/ by selecting .NET (C#) and removing the leading ^ and trailing $
         // The default configuration is suitable for Orthanc-Explorer-2 (see TBD sample)

@@ -31,6 +31,20 @@ namespace OrthancPlugins
   class IAuthorizationService : public boost::noncopyable
   {
   public:
+    struct OrthancResource
+    {
+      std::string dicomUid;
+      std::string orthancId;
+      std::string url;
+      std::string level;
+    };
+
+    struct CreatedToken
+    {
+      std::string url;
+      std::string token;
+    };
+
     virtual ~IAuthorizationService()
     {
     }
@@ -60,5 +74,15 @@ namespace OrthancPlugins
 
     virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
                                             const std::set<std::string>& anyOfPermissions) = 0;
+
+    virtual bool CreateToken(CreatedToken& response,
+                             const std::string& tokenType, 
+                             const std::string& id, 
+                             const std::vector<OrthancResource>& resources,
+                             const std::string& expirationDateString) = 0;
+
+    virtual bool HasUserProfile() const = 0;
+    virtual bool HasCreateToken() const = 0;
+    virtual bool HasTokenValidation() const = 0;
   };
 }
