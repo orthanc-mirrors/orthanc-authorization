@@ -167,7 +167,8 @@ namespace OrthancPlugins
                                             const std::string& tokenType, 
                                             const std::string& id, 
                                             const std::vector<IAuthorizationService::OrthancResource>& resources,
-                                            const std::string& expirationDateString)
+                                            const std::string& expirationDateString,
+                                            const uint64_t& validityDuration)
   {
     if (tokenCreationBaseUrl_.empty())
     {
@@ -217,6 +218,10 @@ namespace OrthancPlugins
     if (!expirationDateString.empty())
     {
       body["expiration-date"] = expirationDateString;
+    }
+    if (validityDuration > 0)
+    {
+      body["validity-duration"] = validityDuration;
     }
 
     std::string bodyAsString;

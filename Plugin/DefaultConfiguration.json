@@ -4,6 +4,7 @@
         // // "WebServiceUserProfileUrl" : " ROOT /user/get-profile",
         // // "WebServiceTokenValidationUrl" : " ROOT /tokens/validate",
         // // "WebServiceTokenCreationBaseUrl" : " ROOT /tokens/",
+        // You should define it only if your auth webservice implements all 3 routes !
         // "WebServiceRootUrl" : "http://change-me:8000/",
 
         // The URL of the auth webservice route implementing user profile (optional)

@@ -85,13 +85,15 @@ namespace OrthancPlugins
                      const std::string& tokenType, 
                      const std::string& id, 
                      const std::vector<IAuthorizationService::OrthancResource>& resources,
-                     const std::string& expirationDateString)
+                     const std::string& expirationDateString,
+                     const uint64_t& validityDuration)
     {
       return decorated_->CreateToken(response,
                                      tokenType,
                                      id,
                                      resources,
-                                     expirationDateString);
+                                     expirationDateString,
+                                     validityDuration);
     }
 
  };

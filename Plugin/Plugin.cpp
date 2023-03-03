@@ -138,7 +138,12 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "'";
           if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
           {
+            LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "' -> granted";
             return 1;
+          }
+          else
+          {
+            LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "' -> not granted";
           }
         }
         else
@@ -148,13 +153,17 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
             if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].token, authTokens[i].value))
             {
+              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> granted";
               return 1;
+            }
+            else
+            {
+              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> not granted";
             }
           }
         }
       }
     }
-
     if (authorizationParser_.get() != NULL &&
         authorizationService_.get() != NULL)
     {
@@ -175,9 +184,8 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         // (cf. "UncheckedLevels" option)
         if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
         {
-          LOG(INFO) << "Testing whether access to "
-                    << OrthancPlugins::EnumerationToString(access->GetLevel())
-                    << " \"" << access->GetOrthancId() << "\" is allowed";
+          std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access->GetLevel()) + " \"" + access->GetOrthancId() + "\" is allowed with a resource token";
+          LOG(INFO) << msg;
 
           bool granted = false;
 
@@ -200,7 +208,12 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 
           if (!granted)
           {
+            LOG(INFO) << msg << " -> not granted";
             return 0;
+          }
+          else
+          {
+            LOG(INFO) << msg << " -> granted";
           }
         }
       }
@@ -338,6 +351,7 @@ void CreateToken(OrthancPluginRestOutput* output,
     std::string id;
     std::vector<OrthancPlugins::IAuthorizationService::OrthancResource> resources;
     std::string expirationDateString;
+    uint64_t validityDuration;
 
     if (body.isMember("ID"))
     {
@@ -373,12 +387,18 @@ void CreateToken(OrthancPluginRestOutput* output,
       expirationDateString = body["ExpirationDate"].asString();
     }
 
+    if (body.isMember("ValidityDuration"))
+    {
+      validityDuration = body["ValidityDuration"].asUInt64();
+    }
+
     OrthancPlugins::IAuthorizationService::CreatedToken createdToken;
     if (authorizationService_->CreateToken(createdToken,
                                            tokenType,
                                            id,
                                            resources,
-                                           expirationDateString))
+                                           expirationDateString,
+                                           validityDuration))
     {
       Json::Value createdJsonToken;
       createdJsonToken["Token"] = createdToken.token;

@@ -84,7 +84,8 @@ namespace OrthancPlugins
                              const std::string& tokenType, 
                              const std::string& id, 
                              const std::vector<IAuthorizationService::OrthancResource>& resources,
-                             const std::string& expirationDateString) ORTHANC_OVERRIDE;
+                             const std::string& expirationDateString,
+                             const uint64_t& validityDuration) ORTHANC_OVERRIDE;
 
   };
 }

@@ -79,7 +79,8 @@ namespace OrthancPlugins
                              const std::string& tokenType, 
                              const std::string& id, 
                              const std::vector<OrthancResource>& resources,
-                             const std::string& expirationDateString) = 0;
+                             const std::string& expirationDateString,
+                             const uint64_t& validityDuration) = 0;
 
     virtual bool HasUserProfile() const = 0;
     virtual bool HasCreateToken() const = 0;
