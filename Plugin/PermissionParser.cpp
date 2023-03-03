@@ -28,12 +28,15 @@ namespace OrthancPlugins
     method(method),
     pattern(patternRegex)
   {
-    std::vector<std::string> permissionsVector;
-    Orthanc::Toolbox::TokenizeString(permissionsVector, permissions, '|');
-
-    for (size_t i = 0; i < permissionsVector.size(); ++i)
+    if (!permissions.empty())
     {
-      this->permissions.insert(permissionsVector[i]);
+      std::vector<std::string> permissionsVector;
+      Orthanc::Toolbox::TokenizeString(permissionsVector, permissions, '|');
+
+      for (size_t i = 0; i < permissionsVector.size(); ++i)
+      {
+        this->permissions.insert(permissionsVector[i]);
+      }
     }
   }
 

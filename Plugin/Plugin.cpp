@@ -419,6 +419,57 @@ void CreateToken(OrthancPluginRestOutput* output,
   }
 }
 
+void DecodeToken(OrthancPluginRestOutput* output,
+                 const char* /*url*/,
+                 const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Post)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "POST");
+  }
+  else
+  {
+    // convert from Orthanc flavored API to WebService API
+    Json::Value body;
+    if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+    }
+
+    Json::Value authPayload;
+
+    authPayload["token-key"] = body["TokenKey"].asString();
+    authPayload["token-value"] = body["TokenValue"].asString();
+
+    OrthancPlugins::IAuthorizationService::DecodedToken decodedToken;
+    if (authorizationService_->DecodeToken(decodedToken,
+                                           body["TokenKey"].asString(),
+                                           body["TokenValue"].asString()))
+    {
+      Json::Value decodedJsonToken;
+      
+      if (!decodedToken.redirectUrl.empty())
+      {
+        decodedJsonToken["RedirectUrl"] = decodedToken.redirectUrl;
+      }
+
+      if (!decodedToken.errorCode.empty())
+      {
+        decodedJsonToken["ErrorCode"] = decodedToken.errorCode;
+      }
+
+      if (!decodedToken.tokenType.empty())
+      {
+        decodedJsonToken["TokenType"] = decodedToken.tokenType;
+      }
+
+      OrthancPlugins::AnswerJson(decodedJsonToken, output);
+    }
+  }
+}
+
 void GetUserProfile(OrthancPluginRestOutput* output,
                     const char* /*url*/,
                     const OrthancPluginHttpRequest* request)
@@ -599,18 +650,21 @@ extern "C"
         pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
         pluginConfiguration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
 
+        std::string urlTokenDecoder;
         std::string urlTokenValidation;
         std::string urlTokenCreationBase;
         std::string urlUserProfile;
         std::string urlRoot;
 
         static const char* WEB_SERVICE_ROOT = "WebServiceRootUrl";
+        static const char* WEB_SERVICE_TOKEN_DECODER = "WebServiceTokenDecoderUrl";
         static const char* WEB_SERVICE_TOKEN_VALIDATION = "WebServiceTokenValidationUrl";
         static const char* WEB_SERVICE_TOKEN_CREATION_BASE = "WebServiceTokenCreationBaseUrl";
         static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
         static const char* WEB_SERVICE_TOKEN_VALIDATION_LEGACY = "WebService";
         if (pluginConfiguration.LookupStringValue(urlRoot, WEB_SERVICE_ROOT))
         {
+          urlTokenDecoder = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/decode");
           urlTokenValidation = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/validate");
           urlTokenCreationBase = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/");
           urlUserProfile = Orthanc::Toolbox::JoinUri(urlRoot, "/user/get-profile");
@@ -618,6 +672,7 @@ extern "C"
         else 
         {
           pluginConfiguration.LookupStringValue(urlTokenValidation, WEB_SERVICE_TOKEN_VALIDATION);
+          pluginConfiguration.LookupStringValue(urlTokenDecoder, WEB_SERVICE_TOKEN_DECODER);
           if (urlTokenValidation.empty())
           {
             pluginConfiguration.LookupStringValue(urlTokenValidation, WEB_SERVICE_TOKEN_VALIDATION_LEGACY);
@@ -698,6 +753,7 @@ extern "C"
           if (standardConfigurations.find("orthanc-explorer-2") != standardConfigurations.end())
           {
             uncheckedFolders_.push_back("/ui/app/");
+            uncheckedFolders_.push_back("/ui/landing/");
             uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
             uncheckedResources_.insert("/ui/api/configuration");
             uncheckedResources_.insert("/auth/user-profile");
@@ -757,7 +813,8 @@ extern "C"
 
         std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(urlTokenValidation,
                                                                                                                         urlTokenCreationBase,
-                                                                                                                        urlUserProfile));
+                                                                                                                        urlUserProfile,
+                                                                                                                        urlTokenDecoder));
 
         std::string webServiceIdentifier;
         if (pluginConfiguration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
@@ -781,6 +838,11 @@ extern "C"
           OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
         }
         
+        if (!urlTokenDecoder.empty())
+        {
+          OrthancPlugins::RegisterRestCallback<DecodeToken>("/auth/tokens/decode", true);
+        }
+
         if (!urlUserProfile.empty())
         {
           OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user/profile", true);
@@ -790,7 +852,8 @@ extern "C"
         {
           OrthancPlugins::RegisterRestCallback<CreateToken>("/auth/tokens/(.*)", true);
         }
-        
+
+
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)
         OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);
 #else

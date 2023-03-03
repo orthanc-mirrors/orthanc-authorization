@@ -81,12 +81,12 @@ namespace OrthancPlugins
       return decorated_->HasTokenValidation();
     }
 
-    bool CreateToken(IAuthorizationService::CreatedToken& response,
-                     const std::string& tokenType, 
-                     const std::string& id, 
-                     const std::vector<IAuthorizationService::OrthancResource>& resources,
-                     const std::string& expirationDateString,
-                     const uint64_t& validityDuration)
+    virtual bool CreateToken(IAuthorizationService::CreatedToken& response,
+                             const std::string& tokenType, 
+                             const std::string& id, 
+                             const std::vector<IAuthorizationService::OrthancResource>& resources,
+                             const std::string& expirationDateString,
+                             const uint64_t& validityDuration)
     {
       return decorated_->CreateToken(response,
                                      tokenType,
@@ -94,6 +94,15 @@ namespace OrthancPlugins
                                      resources,
                                      expirationDateString,
                                      validityDuration);
+    }
+
+    virtual bool DecodeToken(DecodedToken& response,
+                             const std::string& tokenKey, 
+                             const std::string& tokenValue)
+    {
+      return decorated_->DecodeToken(response,
+                                     tokenKey,
+                                     tokenValue);
     }
 
  };

@@ -31,6 +31,7 @@ namespace OrthancPlugins
     std::string identifier_;
     std::string userProfileUrl_;
     std::string tokenValidationUrl_;
+    std::string tokenDecoderUrl_;
     std::string tokenCreationBaseUrl_;
 
   protected:
@@ -53,9 +54,11 @@ namespace OrthancPlugins
   public:
     AuthorizationWebService(const std::string& tokenValidationUrl, 
                             const std::string& tokenCreationBaseUrl, 
-                            const std::string& userProfileUrl) :
+                            const std::string& userProfileUrl,
+                            const std::string& tokenDecoderUrl) :
       userProfileUrl_(userProfileUrl),
       tokenValidationUrl_(tokenValidationUrl),
+      tokenDecoderUrl_(tokenDecoderUrl),
       tokenCreationBaseUrl_(tokenCreationBaseUrl)
     {
     }
@@ -86,6 +89,10 @@ namespace OrthancPlugins
                              const std::vector<IAuthorizationService::OrthancResource>& resources,
                              const std::string& expirationDateString,
                              const uint64_t& validityDuration) ORTHANC_OVERRIDE;
+
+    virtual bool DecodeToken(DecodedToken& response,
+                             const std::string& tokenKey, 
+                             const std::string& tokenValue);
 
   };
 }

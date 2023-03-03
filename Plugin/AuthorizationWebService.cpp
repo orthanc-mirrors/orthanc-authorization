@@ -163,6 +163,67 @@ namespace OrthancPlugins
     identifier_ = webServiceIdentifier;
   }
 
+
+  bool AuthorizationWebService::DecodeToken(DecodedToken& response,
+                                            const std::string& tokenKey, 
+                                            const std::string& tokenValue)
+  {
+    if (tokenDecoderUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not create tokens if the 'WebServiceTokenValidationUrl' is not configured");
+    }
+    Orthanc::WebServiceParameters authWebservice;
+
+    if (!username_.empty())
+    {
+      authWebservice.SetCredentials(username_, password_);
+    }
+
+    Json::Value body;
+
+    body["token-key"] = tokenKey;
+    body["token-value"] = tokenValue;
+
+    std::string bodyAsString;
+    Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
+
+    Json::Value tokenResponse;
+    try
+    {
+      Orthanc::HttpClient authClient(authWebservice, "");
+      authClient.SetUrl(tokenDecoderUrl_);
+      authClient.AssignBody(bodyAsString);
+      authClient.SetMethod(Orthanc::HttpMethod_Post);
+      authClient.AddHeader("Content-Type", "application/json");
+      authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
+
+      authClient.ApplyAndThrowException(tokenResponse);
+
+      if (tokenResponse.isMember("redirect-url"))
+      {
+        response.redirectUrl = tokenResponse["redirect-url"].asString();
+      }
+
+      if (tokenResponse.isMember("error-code"))
+      {
+        response.errorCode = tokenResponse["error-code"].asString();
+      }
+
+      if (tokenResponse.isMember("token-type"))
+      {
+        response.tokenType = tokenResponse["token-type"].asString();
+      }
+
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
+
+  }
+
   bool AuthorizationWebService::CreateToken(IAuthorizationService::CreatedToken& response,
                                             const std::string& tokenType, 
                                             const std::string& id, 

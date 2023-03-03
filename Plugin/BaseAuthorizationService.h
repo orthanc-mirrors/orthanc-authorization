@@ -85,6 +85,11 @@ namespace OrthancPlugins
                                    const Token& token,
                                    const std::string& tokenValue)
     {
+      if (anyOfPermissions.size() == 0)
+      {
+        return true;
+      }
+
       for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
       {
         if (HasUserPermissionInternal(validity, *it, &token, tokenValue))
@@ -98,6 +103,11 @@ namespace OrthancPlugins
     virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
                                             const std::set<std::string>& anyOfPermissions)
     {
+      if (anyOfPermissions.size() == 0)
+      {
+        return true;
+      }
+
       for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
       {
         if (HasUserPermissionInternal(validity, *it, NULL, ""))

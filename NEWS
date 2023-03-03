@@ -6,6 +6,7 @@
 * new "orthanc-explorer-2" StandardConfigurations
 * new GET "auth/user/profile" Rest API route to retrieve user permissions
 * new PUT "auth/tokens/{token-type}" Rest API route to create tokens
+* new POST "auth/tokens/decode" Rest API route to decode tokens
 
 
 2022-11-16 - v 0.4.1

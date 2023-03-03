@@ -45,6 +45,13 @@ namespace OrthancPlugins
       std::string token;
     };
 
+    struct DecodedToken
+    {
+      std::string redirectUrl;
+      std::string errorCode;
+      std::string tokenType;
+    };
+
     virtual ~IAuthorizationService()
     {
     }
@@ -81,6 +88,10 @@ namespace OrthancPlugins
                              const std::vector<OrthancResource>& resources,
                              const std::string& expirationDateString,
                              const uint64_t& validityDuration) = 0;
+
+    virtual bool DecodeToken(DecodedToken& response,
+                             const std::string& tokenKey, 
+                             const std::string& tokenValue) = 0;
 
     virtual bool HasUserProfile() const = 0;
     virtual bool HasCreateToken() const = 0;
