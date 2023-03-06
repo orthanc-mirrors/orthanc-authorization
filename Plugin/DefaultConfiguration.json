@@ -49,18 +49,27 @@
         // You may test your regex in https://regex101.com/ by selecting .NET (C#) and removing the leading ^ and trailing $
         // The default configuration is suitable for Orthanc-Explorer-2 (see TBD sample)
         "Permissions" : [
+            ["post", "^/auth/tokens/decode$", ""],
+
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/(studies|series|instances)$", "all|view"],
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|view"],
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/(studies|study|series|instances)$", "all|view"],
             ["get" , "^/instances/([a-f0-9-]+)/(tags|header)$", "all|view"],
             ["get" , "^/statistics$", "all|view"],
 
+            // create links to open viewer or download resources
+            ["put", "^/auth/tokens/(viewer-instant-link|meddream-instant-link)$", "all|view"],
+            ["put", "^/auth/tokens/(download-instant-link)$", "all|download"],
+
+            // share a link to open a study
+            ["put", "^/auth/tokens/(stone-viewer-publication|meddream-viewer-publication|osimis-viewer-publication)$", "all|share"],
+
+            // uploads
+            ["post", "^/instances$", "all|upload"],
+
             // monitor jobs you have created
             ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],
-
-            // downloads: not functional yet, we need one-time-tokens
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/archive$", "all|download"],
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/media$", "all|download"],
 
             // interacting with peers/modalities/dicomweb
             ["post", "^/(peers|modalities)/(.*)/store$", "all|send"],
@@ -69,15 +78,12 @@
             ["post", "^/modalities/(.*)/query$", "all|q-r-remote-modalities"],
             ["get", "^/queries/([a-f0-9-]+)/answers$", "all|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
+            ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
-
-            // upload
-            ["post", "^/instances$", "all|upload"],
 
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/modify(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"]
-
         ]
     }
 }
