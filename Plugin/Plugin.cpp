@@ -754,6 +754,7 @@ extern "C"
           {
             uncheckedFolders_.push_back("/ui/app/");
             uncheckedFolders_.push_back("/ui/landing/");
+            uncheckedResources_.insert("/");                                      // for the redirect to /ui/app/
             uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
             uncheckedResources_.insert("/ui/api/configuration");
             uncheckedResources_.insert("/auth/user-profile");
