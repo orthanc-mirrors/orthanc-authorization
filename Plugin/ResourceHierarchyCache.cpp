@@ -194,6 +194,7 @@ namespace OrthancPlugins
     }
   }
 
+#if BUILD_UNIT_TESTS == 1
   void ResourceHierarchyCache::AddOrthancDicomMapping(Orthanc::ResourceType level,
                                                       const std::string& orthancId,
                                                       const std::string& dicomUid)
@@ -208,6 +209,6 @@ namespace OrthancPlugins
   {
     cache_->Store(ComputeKey(childLevel, childOrthancId), parentOrthancId, 0 /* no expiration */);
   }
-
+#endif
 
 }

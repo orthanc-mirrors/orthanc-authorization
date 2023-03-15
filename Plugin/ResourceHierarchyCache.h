@@ -89,6 +89,7 @@ namespace OrthancPlugins
                          Orthanc::ResourceType level,
                          const std::string& dicomUid);
 
+#if BUILD_UNIT_TESTS == 1
     FRIEND_TEST(DefaultAuthorizationParser, Parse);
   protected:
     void AddOrthancDicomMapping(Orthanc::ResourceType level,
@@ -98,6 +99,6 @@ namespace OrthancPlugins
     void AddParentLink(Orthanc::ResourceType childLevel,
                        const std::string& childOrthancId,
                        const std::string& parentOrthancId);
-
+#endif
   };
 }

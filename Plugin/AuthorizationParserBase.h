@@ -76,11 +76,13 @@ namespace OrthancPlugins
       resourceHierarchy_->Invalidate(level, id);
     }
 
+#if BUILD_UNIT_TESTS == 1
     FRIEND_TEST(DefaultAuthorizationParser, Parse);
   protected:
     ResourceHierarchyCache* GetResourceHierarchy()
     {
       return resourceHierarchy_.get();
     }
+#endif
   };
 }
