@@ -26,6 +26,10 @@
 
 #include <orthanc/OrthancCPlugin.h>
 
+#if BUILD_UNIT_TESTS == 1
+#  include <gtest/gtest_prod.h>
+#endif
+
 namespace OrthancPlugins
 {
   class ResourceHierarchyCache : public boost::noncopyable
@@ -84,5 +88,16 @@ namespace OrthancPlugins
     bool LookupOrthancId(std::string& target,
                          Orthanc::ResourceType level,
                          const std::string& dicomUid);
+
+    FRIEND_TEST(DefaultAuthorizationParser, Parse);
+  protected:
+    void AddOrthancDicomMapping(Orthanc::ResourceType level,
+                                const std::string& orthancId,
+                                const std::string& dicomUid);
+
+    void AddParentLink(Orthanc::ResourceType childLevel,
+                       const std::string& childOrthancId,
+                       const std::string& parentOrthancId);
+
   };
 }

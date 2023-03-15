@@ -193,4 +193,21 @@ namespace OrthancPlugins
       return false;
     }
   }
+
+  void ResourceHierarchyCache::AddOrthancDicomMapping(Orthanc::ResourceType level,
+                                                      const std::string& orthancId,
+                                                      const std::string& dicomUid)
+  {
+    dicomToOrthanc_->Store(ComputeKey(level, dicomUid), orthancId, 0 /* no expiration */);
+    orthancToDicom_->Store(ComputeKey(level, orthancId), dicomUid, 0 /* no expiration */);
+  }
+
+  void ResourceHierarchyCache::AddParentLink(Orthanc::ResourceType childLevel,
+                                             const std::string& childOrthancId,
+                                             const std::string& parentOrthancId)
+  {
+    cache_->Store(ComputeKey(childLevel, childOrthancId), parentOrthancId, 0 /* no expiration */);
+  }
+
+
 }

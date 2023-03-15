@@ -7,6 +7,10 @@
 * new GET "auth/user/profile" Rest API route to retrieve user permissions
 * new PUT "auth/tokens/{token-type}" Rest API route to create tokens
 * new POST "auth/tokens/decode" Rest API route to decode tokens
+* SECURITY FIX: in prior versions, it was possible to browse remote
+  dicom-web servers without being authenticated.  (The API routes
+  /dicom-web/servers/.../studies were unprotected).  The local
+  dicom-web server was correctly protected.
 
 
 2022-11-16 - v 0.4.1

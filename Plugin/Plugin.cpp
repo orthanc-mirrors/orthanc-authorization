@@ -745,7 +745,6 @@ extern "C"
           {
             uncheckedFolders_.push_back("/stone-webviewer/");
             uncheckedResources_.insert("/system");        // for Stone to check that Orthanc is the server providing the data
-            uncheckedResources_.insert("/tools/lookup");  // for Downloads  (we consider that having access to tools/lookup can not give information about other patients/studies since it only return IDs, no patient data)
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
           }

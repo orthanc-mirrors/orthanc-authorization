@@ -102,6 +102,18 @@ namespace OrthancPlugins
     target.push_back(AccessedResource(Orthanc::ResourceType_Study, study, studyDicomUid));
   }
 
+  void AuthorizationParserBase::AddDicomPatient(AccessedResources& target,
+                                                const std::string& patientId)
+  {
+    std::string patient;
+
+    if (!resourceHierarchy_->LookupOrthancId(patient, Orthanc::ResourceType_Patient, patientId))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
+    }
+
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
+  }
   
   void AuthorizationParserBase::AddDicomSeries(AccessedResources& target,
                                                const std::string& studyDicomUid,

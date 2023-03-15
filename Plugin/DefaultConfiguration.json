@@ -50,6 +50,7 @@
         // The default configuration is suitable for Orthanc-Explorer-2 (see TBD sample)
         "Permissions" : [
             ["post", "^/auth/tokens/decode$", ""],
+            ["post", "^/tools/lookup$", ""], // currently used to authorize downloads in Stone (to map the StudyInstanceUID into an OrthancID.  Not ideal -> we should define a new API that has the resource ID in the path to be able to check it at resource level) but, on another hand, you do not get any Patient information from this route
 
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
@@ -83,7 +84,14 @@
 
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/modify(.*)$", "all|modify"],
-            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"]
+            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
+
+            // deletes
+            ["delete" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|delete"],
+
+            // settings
+            ["put", "^/tools/log-level$", "all|settings"],
+            ["get", "^/tools/log-level$", "all|settings"]
         ]
     }
 }

@@ -23,6 +23,11 @@
 
 #include <Compatibility.h>  // For std::unique_ptr<>
 
+#if BUILD_UNIT_TESTS == 1
+#  include <gtest/gtest_prod.h>
+#endif
+
+
 namespace OrthancPlugins
 {
   class AuthorizationParserBase : public IAuthorizationParser
@@ -47,6 +52,9 @@ namespace OrthancPlugins
     void AddOrthancPatient(AccessedResources& target,
                            const std::string& orthancId);
 
+    void AddDicomPatient(AccessedResources& target,
+                         const std::string& patientId);
+
     void AddDicomStudy(AccessedResources& target,
                        const std::string& studyDicomUid);
     
@@ -66,6 +74,13 @@ namespace OrthancPlugins
                             const std::string& id) ORTHANC_OVERRIDE
     {
       resourceHierarchy_->Invalidate(level, id);
+    }
+
+    FRIEND_TEST(DefaultAuthorizationParser, Parse);
+  protected:
+    ResourceHierarchyCache* GetResourceHierarchy()
+    {
+      return resourceHierarchy_.get();
     }
   };
 }

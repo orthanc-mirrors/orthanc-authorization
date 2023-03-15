@@ -50,7 +50,7 @@ namespace OrthancPlugins
       "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*)$");
 
     dicomWebQidoRsFind_ = boost::regex(
-      "^" + tmp + "/(studies|series|instances)\?(.*)$");
+      "^" + tmp + "/(studies|series|instances)$");
   }
 
 
@@ -134,40 +134,46 @@ namespace OrthancPlugins
     }
     else if (boost::regex_match(uri, what, dicomWebQidoRsFind_))
     {
-      std::string studyInstanceUid, seriesInstanceUid, sopInstanceUid;
+      std::string studyInstanceUid, seriesInstanceUid, sopInstanceUid, patientId;
 
       studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000D", "");
       seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000E", "");
       sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "00080018", "");
+      patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "00100010", "");
 
       if (!sopInstanceUid.empty() && !seriesInstanceUid.empty() && !studyInstanceUid.empty())
       {
         AddDicomInstance(target, studyInstanceUid, seriesInstanceUid, sopInstanceUid);
+        return true;
       }
       else if (!seriesInstanceUid.empty() && !studyInstanceUid.empty())
       {
         AddDicomSeries(target, studyInstanceUid, seriesInstanceUid);
+        return true;
       }
       else if (!studyInstanceUid.empty())
       {
         AddDicomStudy(target, studyInstanceUid);
+        return true;
       }
-      return true;
-    }
-    else
-    {
-      // Unknown type of resource: Consider it as a system access
-
-      // Remove the trailing slashes if need be
-      std::string s = uri;
-      while (!s.empty() &&
-             s[s.length() - 1] == '/')
+      else if (!patientId.empty())
       {
-        s = s.substr(0, s.length() - 1);
+        AddDicomPatient(target, patientId);
+        return true;
       }
-          
-      target.push_back(AccessedResource(AccessLevel_System, s, ""));
-      return true;
-    }        
+    }
+
+    // Unknown type of resource: Consider it as a system access
+
+    // Remove the trailing slashes if need be
+    std::string s = uri;
+    while (!s.empty() &&
+            s[s.length() - 1] == '/')
+    {
+      s = s.substr(0, s.length() - 1);
+    }
+        
+    target.push_back(AccessedResource(AccessLevel_System, s, ""));
+    return true;
   }
 }
