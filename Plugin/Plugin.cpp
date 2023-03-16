@@ -606,6 +606,8 @@ extern "C"
         std::string dicomWebRoot = "/dicom-web/";
         std::string oe2Root = "/ui/";
 
+        bool hasBasicAuthEnabled = orthancFullConfiguration.GetBooleanValue("AuthenticationEnabled", "true");
+
         if (orthancFullConfiguration.IsSection("DicomWeb"))
         {
           OrthancPlugins::OrthancConfiguration dicomWeb;
@@ -725,7 +727,14 @@ extern "C"
 
         if (authorizationParser_.get() == NULL && permissionParser_.get() == NULL)
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: No Token Validation or User Profile url defined");
+          if (hasBasicAuthEnabled)
+          {
+            LOG(WARNING) << "Authorization plugin: No Token Validation or User Profile url defined -> will only be able to generate tokens.  All API routes are accessible to all registered users.";
+          }
+          else
+          {
+            LOG(WARNING) << "Authorization plugin: ----------- insecure setup ---------- No Token Validation or User Profile url defined -> will only be able to generate tokens.  Authentication is not enabled -> anyone will have access to all API routes.";
+          }
         }
 
         std::set<std::string> standardConfigurations;
@@ -854,11 +863,22 @@ extern "C"
         }
 
 
+        if (authorizationParser_.get() != NULL || permissionParser_.get() != NULL)
+        {
+          if (hasBasicAuthEnabled)
+          {
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: you are using the plugin to grant access to resources or handle user permissions.  This is not compatible with \"AuthenticationEnabled\" = true");
+          }
+
+          LOG(WARNING) << "Authorization plugin: Registering Incoming HTTP Request Filter";
+
 #if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 2, 1)
-        OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);
+          OrthancPluginRegisterIncomingHttpRequestFilter2(context, FilterHttpRequests);
 #else
-        OrthancPluginRegisterIncomingHttpRequestFilter(context, FilterHttpRequestsFallback);
+          OrthancPluginRegisterIncomingHttpRequestFilter(context, FilterHttpRequestsFallback);
 #endif
+        }
+
       }
       else
       {
