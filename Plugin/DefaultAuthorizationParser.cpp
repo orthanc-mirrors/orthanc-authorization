@@ -44,13 +44,13 @@ namespace OrthancPlugins
       "^" + tmp + "/studies/([.0-9]+)(|/series)(|/)$");
       
     dicomWebSeries_ = boost::regex(
-      "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)(|/instances)(|/)$");
+      "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)(|/instances|/rendered|/metadata)(|/)$");
       
     dicomWebInstances_ = boost::regex(
-      "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*)$");
+      "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*|/rendered|/metadata)(|/)$");
 
     dicomWebQidoRsFind_ = boost::regex(
-      "^" + tmp + "/(studies|series|instances)$");
+      "^" + tmp + "/(studies|series|instances)(|/)$");
   }
 
 
