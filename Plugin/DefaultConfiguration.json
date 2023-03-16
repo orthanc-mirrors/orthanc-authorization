@@ -4,6 +4,7 @@
         // // "WebServiceUserProfileUrl" : " ROOT /user/get-profile",
         // // "WebServiceTokenValidationUrl" : " ROOT /tokens/validate",
         // // "WebServiceTokenCreationBaseUrl" : " ROOT /tokens/",
+        // // "WebServiceTokenDecoderUrl" : " ROOT /tokens/decode",
         // You should define it only if your auth webservice implements all 3 routes !
         // "WebServiceRootUrl" : "http://change-me:8000/",
 
@@ -17,6 +18,9 @@
 
         // The Base URL of the auth webservice route to create tokens (optional)
         // "WebServiceTokenCreationBaseUrl" : "http://change-me:8000/tokens/",
+
+        // The URL of the auth webservice route implementing token decoding (optional)
+        // "WebServiceTokenDecoderUrl": "http://change-me:8000/tokens/decode"
 
         // The username and password to connect to the webservice (optional)
         //"WebServiceUsername": "change-me",
