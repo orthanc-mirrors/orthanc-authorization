@@ -19,13 +19,13 @@ cmake_minimum_required(VERSION 2.8)
 
 project(OrthancAuthorization)
 
-set(ORTHANC_PLUGIN_VERSION "mainline")
+set(ORTHANC_PLUGIN_VERSION "0.5.0")
 
 if (ORTHANC_PLUGIN_VERSION STREQUAL "mainline")
   set(ORTHANC_FRAMEWORK_VERSION "mainline")
   set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "hg")
 else()
-  set(ORTHANC_FRAMEWORK_VERSION "1.9.3")
+  set(ORTHANC_FRAMEWORK_VERSION "1.11.3")
   set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "web")
 endif()
 

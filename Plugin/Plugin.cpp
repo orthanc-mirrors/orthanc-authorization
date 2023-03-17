@@ -49,15 +49,27 @@ static std::string JoinStrings(const std::set<std::string>& values)
   return out;
 }
 
-struct TokenAndValue
+class TokenAndValue
 {
-  const OrthancPlugins::Token& token;
-  std::string value;
+private:
+  OrthancPlugins::Token token_;
+  std::string value_;
 
+public:
   TokenAndValue(const OrthancPlugins::Token& token, const std::string& value) :
-    token(token),
-    value(value)
+    token_(token),
+    value_(value)
   {
+  }
+
+  const OrthancPlugins::Token& GetToken() const
+  {
+    return token_;
+  }
+
+  const std::string& GetValue() const
+  {
+    return value_;
   }
 };
 
@@ -150,15 +162,15 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         {
           for (size_t i = 0; i < authTokens.size(); ++i)
           {
-            LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
-            if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].token, authTokens[i].value))
+            LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
+            if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].GetToken(), authTokens[i].GetValue()))
             {
-              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> granted";
+              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> granted";
               return 1;
             }
             else
             {
-              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].token.GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> not granted";
+              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> not granted";
             }
           }
         }
@@ -198,7 +210,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             // Loop over all the authorization tokens in the request until finding one that is granted
             for (size_t i = 0; i < authTokens.size(); ++i)
             {
-              if (authorizationService_->IsGranted(validity, method, *access, authTokens[i].token, authTokens[i].value))
+              if (authorizationService_->IsGranted(validity, method, *access, authTokens[i].GetToken(), authTokens[i].GetValue()))
               {
                 granted = true;
                 break;
