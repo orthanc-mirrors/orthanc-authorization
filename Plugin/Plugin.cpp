@@ -515,10 +515,11 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       if (hasValue)
       {
         unsigned int validity; // not used
-        authorizationService_->GetUserProfile(validity, profile, *token, value);
-        
-        OrthancPlugins::AnswerJson(profile, output);
-        break;
+        if (authorizationService_->GetUserProfile(validity, profile, *token, value))
+        {
+          OrthancPlugins::AnswerJson(profile, output);
+          return;
+        }
       }
     }
 
