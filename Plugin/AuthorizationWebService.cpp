@@ -282,7 +282,7 @@ namespace OrthancPlugins
     }
     if (validityDuration > 0)
     {
-      body["validity-duration"] = validityDuration;
+      body["validity-duration"] = Json::UInt64(validityDuration);
     }
 
     std::string bodyAsString;
