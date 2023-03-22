@@ -92,6 +92,7 @@
 
             // deletes
             ["delete" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|delete"],
+            ["post" , "^/tools/bulk-delete$", "all|delete"],
 
             // settings
             ["put", "^/tools/log-level$", "all|settings"],
