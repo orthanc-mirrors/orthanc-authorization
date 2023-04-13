@@ -69,7 +69,7 @@
             ["put", "^/auth/tokens/(download-instant-link)$", "all|download"],
 
             // share a link to open a study
-            ["put", "^/auth/tokens/(stone-viewer-publication|meddream-viewer-publication|osimis-viewer-publication)$", "all|share"],
+            ["put", "^/auth/tokens/(stone-viewer-publication|meddream-viewer-publication|osimis-viewer-publication|ohif-viewer-publication)$", "all|share"],
 
             // uploads
             ["post", "^/instances$", "all|upload"],
