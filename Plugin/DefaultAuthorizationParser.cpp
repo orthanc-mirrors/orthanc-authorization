@@ -137,9 +137,28 @@ namespace OrthancPlugins
       std::string studyInstanceUid, seriesInstanceUid, sopInstanceUid, patientId;
 
       studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000D", "");
+      if (studyInstanceUid.empty())
+      {
+        studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "StudyInstanceUID", "");
+      }
+
       seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000E", "");
+      if (seriesInstanceUid.empty())
+      {
+        seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "SeriesInstanceUID", "");
+      }
+
       sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "00080018", "");
+      if (sopInstanceUid.empty())
+      {
+        sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "SOPInstanceUID", "");
+      }
+
       patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "00100010", "");
+      if (patientId.empty())
+      {
+        patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "PatientID", "");
+      }
 
       if (!sopInstanceUid.empty() && !seriesInstanceUid.empty() && !studyInstanceUid.empty())
       {

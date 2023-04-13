@@ -237,6 +237,17 @@ TEST(DefaultAuthorizationParser, Parse)
   }
   {
     accesses.clear();
+    const char* getKeys[] = {"StudyInstanceUID", "SOPInstanceUID", "SeriesInstanceUID"};
+    const char* getValues[] = {"2.2", "4.4", "3.3", };
+    AssociativeArray getArguments(3, getKeys, getValues, false);
+    parser.Parse(accesses, "/dicom-web/studies", getArguments.GetMap());
+    ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Instance, instanceOrthancId));
+    ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Series, seriesOrthancId));
+    ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
+    ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
+  }
+  {
+    accesses.clear();
     const char* getKeys[] = {"00100010"};
     const char* getValues[] = {"PATIENT.1"};
     AssociativeArray getArguments(1, getKeys, getValues, false);
