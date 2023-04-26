@@ -760,7 +760,7 @@ extern "C"
             uncheckedResources_.insert("/osimis-viewer/config.js");
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));
-            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, "token"));  // for download links
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, "token"));  // for download links in Webviewer
           }
 
           if (standardConfigurations.find("stone-webviewer") != standardConfigurations.end())
@@ -782,6 +782,7 @@ extern "C"
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));          // for keycloak
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, "token"));         // for download links in OE2
           }
 
         }

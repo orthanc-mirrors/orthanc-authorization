@@ -51,7 +51,7 @@
         // You may define other permissions yourself as long as they match the permissions
         // provided in the user-profile route implemented by the auth-service.
         // You may test your regex in https://regex101.com/ by selecting .NET (C#) and removing the leading ^ and trailing $
-        // The default configuration is suitable for Orthanc-Explorer-2 (see TBD sample)
+        // The default configuration is suitable for Orthanc-Explorer-2 (see https://github.com/orthanc-team/orthanc-auth-service)
         "Permissions" : [
             ["post", "^/auth/tokens/decode$", ""],
             ["post", "^/tools/lookup$", ""], // currently used to authorize downloads in Stone (to map the StudyInstanceUID into an OrthancID.  Not ideal -> we should define a new API that has the resource ID in the path to be able to check it at resource level) but, on another hand, you do not get any Patient information from this route
