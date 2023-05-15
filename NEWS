@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2023-05-15 - v 0.5.2
+====================
 
 * Fix standard configuration "orthanc-explorer-2": consider the "token"
   Get arguments
