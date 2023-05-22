@@ -135,6 +135,13 @@ TEST(DefaultAuthorizationParser, Parse)
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
 
   accesses.clear();
+  parser.Parse(accesses, "/instances/44444444-44444444-44444444-44444444-44444444/preview", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Instance, instanceOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Series, seriesOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
+
+  accesses.clear();
   parser.Parse(accesses, "/web-viewer/instances/jpeg95-44444444-44444444-44444444-44444444-44444444_0", noGetArguments.GetMap());
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Instance, instanceOrthancId));
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Series, seriesOrthancId));
