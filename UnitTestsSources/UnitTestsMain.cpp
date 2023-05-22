@@ -205,6 +205,13 @@ TEST(DefaultAuthorizationParser, Parse)
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
 
+  accesses.clear();
+  parser.Parse(accesses, "/dicom-web/studies/2.2/series/3.3/instances/4.4/bulk/7fe00010", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Instance, instanceOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Series, seriesOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
+
   {
     accesses.clear();
     const char* getKeys[] = {"0020000D"};
