@@ -1,3 +1,4 @@
+* new default permissions for labels
 * Fix parsing of dicom-web/studies/../series/../instances/../bulk/.. routes
 
 2023-05-15 - v 0.5.2

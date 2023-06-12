@@ -91,6 +91,12 @@
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/modify(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
 
+            // labels
+            ["get", "^/tools/labels$", "all|view|edit-labels"],
+            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels$", "all|view"],
+            ["put" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels/(.*)$", "all|edit-labels"],
+            ["delete" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels/(.*)$", "all|edit-labels"],
+
             // deletes
             ["delete" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|delete"],
             ["post" , "^/tools/bulk-delete$", "all|delete"],
