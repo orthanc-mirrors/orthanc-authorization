@@ -785,6 +785,11 @@ extern "C"
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_GetArgument, "token"));         // for download links in OE2
           }
 
+          if (standardConfigurations.find("ohif") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/ohif/");
+          }
+
         }
 
         std::string checkedLevelString;
