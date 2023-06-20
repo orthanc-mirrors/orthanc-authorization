@@ -147,30 +147,33 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       {
         if (authTokens.empty())
         {
-          LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "'";
+          std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
+          LOG(INFO) << msg;
           if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
           {
-            LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "' -> granted";
+            LOG(INFO) << msg << " -> granted";
             return 1;
           }
           else
           {
-            LOG(INFO) << "Testing whether anonymous user has any of the required permissions '" << JoinStrings(requiredPermissions) << "' -> not granted";
+            LOG(INFO) << msg << " -> not granted";
           }
         }
         else
         {
           for (size_t i = 0; i < authTokens.size(); ++i)
           {
-            LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "'";
+            std::string msg = std::string("Testing whether user has the required permissions '") + JoinStrings(requiredPermissions) + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "' required to match '" + matchedPattern + "'";
+
+            LOG(INFO) << msg;
             if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].GetToken(), authTokens[i].GetValue()))
             {
-              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> granted";
+              LOG(INFO) << msg << " -> granted";
               return 1;
             }
             else
             {
-              LOG(INFO) << "Testing whether user has the required permission '" << JoinStrings(requiredPermissions) << "' based on the '" << authTokens[i].GetToken().GetKey() << "' HTTP header required to match '" << matchedPattern << "' -> not granted";
+              LOG(INFO) << msg << " -> not granted";
             }
           }
         }
