@@ -93,6 +93,11 @@ TEST(DefaultAuthorizationParser, Parse)
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
 
   accesses.clear();
+  parser.Parse(accesses, "/studies/22222222-22222222-22222222-22222222-22222222/ohif-dicom.json", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
+
+  accesses.clear();
   parser.Parse(accesses, "/osimis-viewer/studies/22222222-22222222-22222222-22222222-22222222/archive", noGetArguments.GetMap());
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Study, studyOrthancId));
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_Patient, patientOrthancId));
