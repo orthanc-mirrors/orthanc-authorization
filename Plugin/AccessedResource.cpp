@@ -24,15 +24,17 @@ namespace OrthancPlugins
 {
   AccessedResource::AccessedResource(AccessLevel level,
                                      const std::string& orthancId,
-                                     const std::string& dicomUid) :
+                                     const std::string& dicomUid,
+                                     const std::set<std::string>& labels) :
     level_(level),
     orthancId_(orthancId),
-    dicomUid_(dicomUid)
+    dicomUid_(dicomUid),
+    labels_(labels)
   {
     if (level_ == AccessLevel_System &&
-        !dicomUid.empty())
+        (!dicomUid.empty() || !labels.empty()))
     {
-      // The "DICOM UID" makes no sense for custom Orthanc URIs
+      // The "DICOM UID" and labels make no sense for custom Orthanc URIs
       throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);        
     }
   }
@@ -40,9 +42,11 @@ namespace OrthancPlugins
 
   AccessedResource::AccessedResource(Orthanc::ResourceType level,
                                      const std::string& orthancId,
-                                     const std::string& dicomUid) :
+                                     const std::string& dicomUid,
+                                     const std::set<std::string>& labels) :
     orthancId_(orthancId),
-    dicomUid_(dicomUid)
+    dicomUid_(dicomUid),
+    labels_(labels)
   {
     switch (level)
     {
@@ -79,4 +83,17 @@ namespace OrthancPlugins
       return dicomUid_;
     }
   }
+
+    const std::set<std::string>& AccessedResource::GetLabels() const
+    {
+    if (level_ == AccessLevel_System)
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadSequenceOfCalls);        
+    }
+    else
+    {
+      return labels_;
+    }
+  }
+
 }

@@ -66,7 +66,8 @@ namespace OrthancPlugins
     
     bool GetHierarchy(std::string& dicomUid /* out */,
                       OrthancResource& parent /* out */,
-                      std::list<OrthancResource>& children /* out */) const;
+                      std::list<OrthancResource>& children /* out */,
+                      std::set<std::string>& labels /* out */) const;
 
     static bool LookupOrthancId(std::string& result,
                                 Orthanc::ResourceType level,

@@ -22,7 +22,6 @@
 #include "AuthorizationWebService.h"
 #include "PermissionParser.h"
 #include "MemoryCache.h"
-
 #include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
 
 #include <Compatibility.h>  // For std::unique_ptr<>
@@ -88,9 +87,11 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
   {
     unsigned int validity;  // ignored
 
+    // Allow GET accesses to unchecked resources/folders (usually static resources)
+    ////////////////////////////////////////////////////////////////
+
     if (method == OrthancPluginHttpMethod_Get)
     {
-      // Allow GET accesses to static resources
       if (uncheckedResources_.find(uri) != uncheckedResources_.end())
       {
         return 1;
@@ -105,6 +106,9 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         }
       }
     }
+
+    // Extract auth tokens from headers and url get arguments
+    ////////////////////////////////////////////////////////////////
 
     OrthancPlugins::AssociativeArray headers(headersCount, headersKeys, headersValues, false);
     OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
@@ -136,10 +140,11 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       }
     }
 
-    // check if the user permissions grants him access
+    // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
+    ////////////////////////////////////////////////////////////////
+
     if (permissionParser_.get() != NULL &&
       authorizationService_.get() != NULL) 
-      // && uncheckedLevels_.find(OrthancPlugins::AccessLevel_UserPermissions) == uncheckedLevels_.end())
     {
       std::set<std::string> requiredPermissions;
       std::string matchedPattern;
@@ -168,6 +173,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             LOG(INFO) << msg;
             if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].GetToken(), authTokens[i].GetValue()))
             {
+              // TODO: check labels permissions
               LOG(INFO) << msg << " -> granted";
               return 1;
             }
@@ -179,6 +185,10 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         }
       }
     }
+
+
+    // 
+
     if (authorizationParser_.get() != NULL &&
         authorizationService_.get() != NULL)
     {
@@ -508,7 +518,7 @@ void GetUserProfile(OrthancPluginRestOutput* output,
     for (std::set<OrthancPlugins::Token>::const_iterator
             token = tokens_.begin(); token != tokens_.end(); ++token)
     {
-      Json::Value profile;
+      OrthancPlugins::IAuthorizationService::UserProfile profile;
 
       std::string value;
 
@@ -532,7 +542,23 @@ void GetUserProfile(OrthancPluginRestOutput* output,
         unsigned int validity; // not used
         if (authorizationService_->GetUserProfile(validity, profile, *token, value))
         {
-          OrthancPlugins::AnswerJson(profile, output);
+          Json::Value jsonProfile;
+          jsonProfile["name"] = profile.name;
+          jsonProfile["permissions"] = Json::arrayValue;
+          for (std::set<std::string>::const_iterator it = profile.permissions.begin(); it != profile.permissions.end(); ++it)
+          {
+            jsonProfile["permissions"].append(*it);
+          }
+          for (std::set<std::string>::const_iterator it = profile.authorizedLabels.begin(); it != profile.authorizedLabels.end(); ++it)
+          {
+            jsonProfile["authorized-labels"].append(*it);
+          }
+          for (std::set<std::string>::const_iterator it = profile.forbiddenLabels.begin(); it != profile.forbiddenLabels.end(); ++it)
+          {
+            jsonProfile["forbidden-labels"].append(*it);
+          }
+
+          OrthancPlugins::AnswerJson(jsonProfile, output);
           return;
         }
       }

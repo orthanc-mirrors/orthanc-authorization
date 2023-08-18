@@ -24,12 +24,16 @@
 #include <Toolbox.h>
 #include <HttpClient.h>
 #include <algorithm>
+#include "SerializationToolbox.h"
 
 namespace OrthancPlugins
 {
   static const char* GRANTED = "granted";
   static const char* VALIDITY = "validity";
   static const char* PERMISSIONS = "permissions";
+  static const char* AUTHORIZED_LABELS = "authorized-labels";
+  static const char* FORBIDDEN_LABELS = "forbidden-labels";
+  static const char* USER_NAME = "name";
 
 
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
@@ -87,6 +91,11 @@ namespace OrthancPlugins
     else
     {
       body["server-id"] = Json::nullValue;
+    }
+
+    if (access.GetLabels().size() > 0)
+    {
+      Orthanc::SerializationToolbox::WriteSetOfStrings(body, access.GetLabels(), "labels");
     }
 
     Orthanc::WebServiceParameters authWebservice;
@@ -315,7 +324,7 @@ namespace OrthancPlugins
 
 
   bool AuthorizationWebService::GetUserProfileInternal(unsigned int& validity,
-                                                       Json::Value& profile /* out */,
+                                                       UserProfile& profile /* out */,
                                                        const Token* token,
                                                        const std::string& tokenValue)
   {
@@ -361,15 +370,52 @@ namespace OrthancPlugins
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
-      authClient.ApplyAndThrowException(profile);
+      Json::Value jsonProfile;
+      authClient.ApplyAndThrowException(jsonProfile);
 
-      if (profile.isMember("validity"))
+      if (jsonProfile.type() != Json::objectValue ||
+          !jsonProfile.isMember(PERMISSIONS) ||
+          !jsonProfile.isMember(VALIDITY) ||
+          !jsonProfile.isMember(AUTHORIZED_LABELS) ||
+          !jsonProfile.isMember(FORBIDDEN_LABELS) ||
+          !jsonProfile.isMember(USER_NAME) ||
+          jsonProfile[PERMISSIONS].type() != Json::arrayValue ||
+          jsonProfile[AUTHORIZED_LABELS].type() != Json::arrayValue ||
+          jsonProfile[FORBIDDEN_LABELS].type() != Json::arrayValue ||
+          jsonProfile[VALIDITY].type() != Json::intValue ||
+          jsonProfile[USER_NAME].type() != Json::stringValue)
       {
-        validity = profile["validity"].asInt();
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+                                        "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
       }
-      else
+
+      validity = jsonProfile[VALIDITY].asUInt();
+      
+      profile.name = jsonProfile[USER_NAME].asString();
+      
+      for (Json::ArrayIndex i = 0; i < jsonProfile[PERMISSIONS].size(); ++i)
       {
-        validity = 0;
+        profile.permissions.insert(jsonProfile[PERMISSIONS][i].asString());
+      }
+      for (Json::ArrayIndex i = 0; i < jsonProfile[AUTHORIZED_LABELS].size(); ++i)
+      {
+        profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
+      }
+      for (Json::ArrayIndex i = 0; i < jsonProfile[FORBIDDEN_LABELS].size(); ++i)
+      {
+        profile.forbiddenLabels.insert(jsonProfile[FORBIDDEN_LABELS][i].asString());
+      }
+
+      if (profile.authorizedLabels.size() > 0 && profile.forbiddenLabels.size() > 0)
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+                                        "Syntax error in the result of the Auth Web service, the UserProfile can not contain both authorized and forbidden labels");
+      }
+
+      if (profile.authorizedLabels.size() == 0 && profile.forbiddenLabels.size() == 0)
+      {
+        LOG(WARNING) << "The UserProfile does not contain any authorized or forbidden labels, assuming the user has access to all data (equivalent to \"authorized_labels\": [\"*\"]) !";
+        profile.authorizedLabels.insert("*");
       }
 
       return true;
@@ -385,27 +431,15 @@ namespace OrthancPlugins
                                                           const Token* token,
                                                           const std::string& tokenValue)
   {
-    Json::Value profile;
+    UserProfile profile;
 
 
     if (GetUserProfileInternal(validity, profile, token, tokenValue))
     {
-      if (profile.type() != Json::objectValue ||
-          !profile.isMember(PERMISSIONS) ||
-          !profile.isMember(VALIDITY) ||
-          profile[PERMISSIONS].type() != Json::arrayValue ||
-          profile[VALIDITY].type() != Json::intValue)
+      std::set<std::string>& permissions = profile.permissions;
+      for (std::set<std::string>::const_iterator it = permissions.begin(); it != permissions.end(); ++it)
       {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
-                                        "Syntax error in the result of the Web service");
-      }
-
-      validity = profile[VALIDITY].asUInt();
-
-      Json::Value& permissions = profile[PERMISSIONS];
-      for (Json::ArrayIndex i = 0; i < permissions.size(); ++i)
-      {
-        if (permission == permissions[i].asString())
+        if (permission == *it)
         {
           return true;
         }

@@ -37,7 +37,8 @@ namespace OrthancPlugins
 
     void AddResourceInternal(AccessedResources& target,
                              Orthanc::ResourceType level,
-                             const std::string& orthancId);
+                             const std::string& orthancId,
+                             const std::set<std::string>& labels);
     
   protected:
     void AddOrthancInstance(AccessedResources& target,

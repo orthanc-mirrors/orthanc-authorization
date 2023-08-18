@@ -24,6 +24,7 @@
 #include <orthanc/OrthancCPlugin.h>
 #include <boost/noncopyable.hpp>
 #include <json/json.h>
+#include <set>
 
 namespace OrthancPlugins
 {
@@ -52,6 +53,14 @@ namespace OrthancPlugins
       std::string tokenType;
     };
 
+    struct UserProfile
+    {
+      std::string name;
+      std::set<std::string> permissions;
+      std::set<std::string> authorizedLabels;
+      std::set<std::string> forbiddenLabels;
+    };
+
     virtual ~IAuthorizationService()
     {
     }
@@ -67,12 +76,12 @@ namespace OrthancPlugins
                                           const AccessedResource& access) = 0;
 
     virtual bool GetUserProfile(unsigned int& validity /* out */,
-                                Json::Value& profile /* out */,
+                                UserProfile& profile /* out */,
                                 const Token& token,
                                 const std::string& tokenValue) = 0;
 
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
-                                         Json::Value& profile /* out */) = 0;
+                                         UserProfile& profile /* out */) = 0;
 
     virtual bool HasUserPermission(unsigned int& validity /* out */,
                                    const std::set<std::string>& anyOfPermissions,

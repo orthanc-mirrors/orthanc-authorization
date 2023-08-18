@@ -22,6 +22,7 @@
 #include <OrthancException.h>
 
 #include <boost/lexical_cast.hpp>
+#include <Toolbox.h>
 
 namespace OrthancPlugins
 {
@@ -43,6 +44,63 @@ namespace OrthancPlugins
     cache_->Store(ComputeKey(child), parent.GetIdentifier(), 0 /* no expiration */);
   }
 
+  void ResourceHierarchyCache::GetLabels(std::set<std::string>& labels,
+                                         const OrthancResource& resource)
+  {
+    labels.clear();
+    
+    std::string key = ComputeKey(resource);
+    
+    std::string serializedLabels;
+    if (!labels_->Retrieve(serializedLabels, key))
+    {
+      // The labels were not already stored in the cache or they have expired
+      OrthancResource parent;
+      UpdateResourceFromOrthanc(parent, labels, resource);
+    }
+    else
+    {
+      Orthanc::Toolbox::SplitString(labels, serializedLabels, ',');
+    }
+  }
+
+
+  void ResourceHierarchyCache::UpdateResourceFromOrthanc(OrthancResource& parent,
+                                                         std::set<std::string>& labels,
+                                                         const OrthancResource& resource)
+  {
+    std::string key = ComputeKey(resource);
+
+    // Not in the cache, reading the resource from the Orthanc store
+    std::string dicomUid;
+    std::list<OrthancResource> children;
+
+    if (!resource.GetHierarchy(dicomUid, parent, children, labels))
+    {
+      // The resource is non-existing (*)
+      return;
+    }
+
+    orthancToDicom_->Store(key, dicomUid, 0 /* no expiration */);
+    dicomToOrthanc_->Store(ComputeKey(resource.GetLevel(), dicomUid),
+                           resource.GetIdentifier(), 0 /* no expiration */);
+    std::string serializedLabels;
+    Orthanc::Toolbox::JoinStrings(serializedLabels, labels, ",");
+    labels_->Store(key, serializedLabels, 60);
+
+    for (std::list<OrthancResource>::const_iterator
+           it = children.begin(); it != children.end(); ++it)
+    {
+      // Cache the relation of the resource with its children
+      LinkParent(*it, resource);
+    }
+
+    if (parent.IsValid())
+    {
+      LinkParent(resource, parent);
+    }
+  }
+
 
   bool ResourceHierarchyCache::LookupParent(std::string& target,
                                             const OrthancResource& resource)
@@ -55,31 +113,12 @@ namespace OrthancPlugins
       return true;
     }
 
-    // Not in the cache, reading the resource from the Orthanc store
-    std::string dicomUid;
     OrthancResource parent;
-    std::list<OrthancResource> children;
-
-    if (!resource.GetHierarchy(dicomUid, parent, children))
-    {
-      // The resource is non-existing (*)
-      return false;
-    }
-
-    orthancToDicom_->Store(key, dicomUid, 0 /* no expiration */);
-    dicomToOrthanc_->Store(ComputeKey(resource.GetLevel(), dicomUid),
-                           resource.GetIdentifier(), 0 /* no expiration */);
-
-    for (std::list<OrthancResource>::const_iterator
-           it = children.begin(); it != children.end(); ++it)
-    {
-      // Cache the relation of the resource with its children
-      LinkParent(*it, resource);
-    }
+    std::set<std::string> labels;
+    UpdateResourceFromOrthanc(parent, labels, resource);
 
     if (parent.IsValid())
     {
-      LinkParent(resource, parent);
       target = parent.GetIdentifier();
       return true;
     }
@@ -95,7 +134,8 @@ namespace OrthancPlugins
   ResourceHierarchyCache::ResourceHierarchyCache(ICacheFactory& factory) :
     cache_(factory.Create()),
     orthancToDicom_(factory.Create()),
-    dicomToOrthanc_(factory.Create())
+    dicomToOrthanc_(factory.Create()),
+    labels_(factory.Create())
   {
     if (cache_.get() == NULL)
     {
@@ -113,6 +153,7 @@ namespace OrthancPlugins
     std::string key = ComputeKey(level, identifier);
     cache_->Invalidate(key);
     orthancToDicom_->Invalidate(key);
+    labels_->Invalidate(key);
   }
 
 

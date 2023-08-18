@@ -38,6 +38,7 @@ namespace OrthancPlugins
     std::unique_ptr<ICache>   cache_;   // Maps resources to their parents
     std::unique_ptr<ICache>   orthancToDicom_;
     std::unique_ptr<ICache>   dicomToOrthanc_;
+    std::unique_ptr<ICache>   labels_;
 
     std::string ComputeKey(Orthanc::ResourceType level,
                            const std::string& identifier) const;
@@ -59,6 +60,10 @@ namespace OrthancPlugins
     {
       return LookupParent(target, OrthancResource(level, identifier));
     }
+
+    void UpdateResourceFromOrthanc(OrthancResource& parent,
+                                   std::set<std::string>& labels,
+                                   const OrthancResource& resource);
 
   public:
     explicit ResourceHierarchyCache(ICacheFactory& factory);
@@ -88,6 +93,9 @@ namespace OrthancPlugins
     bool LookupOrthancId(std::string& target,
                          Orthanc::ResourceType level,
                          const std::string& dicomUid);
+
+    void GetLabels(std::set<std::string>& labels,
+                   const OrthancResource& resource);
 
 #if BUILD_UNIT_TESTS == 1
     FRIEND_TEST(DefaultAuthorizationParser, Parse);

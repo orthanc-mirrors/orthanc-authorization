@@ -113,7 +113,7 @@ namespace OrthancPlugins
 
   
   bool CachedAuthorizationService::GetUserProfileInternal(unsigned int& validity,
-                                                          Json::Value& profile /* out */,
+                                                          UserProfile& profile /* out */,
                                                           const Token* token,
                                                           const std::string& tokenValue)
   {

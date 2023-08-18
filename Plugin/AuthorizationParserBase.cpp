@@ -24,13 +24,14 @@ namespace OrthancPlugins
 {
   void AuthorizationParserBase::AddResourceInternal(AccessedResources& target,
                                                     Orthanc::ResourceType level,
-                                                    const std::string& orthancId)
+                                                    const std::string& orthancId,
+                                                    const std::set<std::string>& labels)
   {
     std::string dicomUid;
 
     if (resourceHierarchy_->LookupDicomUid(dicomUid, level, orthancId))
     {
-      target.push_back(AccessedResource(level, orthancId, dicomUid));
+      target.push_back(AccessedResource(level, orthancId, dicomUid, labels));
     }
   }
     
@@ -44,10 +45,19 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
-    AddResourceInternal(target, Orthanc::ResourceType_Study, study);
-    AddResourceInternal(target, Orthanc::ResourceType_Series, series);
-    AddResourceInternal(target, Orthanc::ResourceType_Instance, orthancId);
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, patient));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Study, study));
+    AddResourceInternal(target, Orthanc::ResourceType_Study, study, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Series, series));
+    AddResourceInternal(target, Orthanc::ResourceType_Series, series, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Instance, orthancId));
+    AddResourceInternal(target, Orthanc::ResourceType_Instance, orthancId, labels);
   }
 
   
@@ -60,9 +70,16 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
-    AddResourceInternal(target, Orthanc::ResourceType_Study, study);
-    AddResourceInternal(target, Orthanc::ResourceType_Series, orthancId);
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, patient));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Study, study));
+    AddResourceInternal(target, Orthanc::ResourceType_Study, study, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Series, orthancId));
+    AddResourceInternal(target, Orthanc::ResourceType_Series, orthancId, labels);
   }
 
   
@@ -75,15 +92,23 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
-    AddResourceInternal(target, Orthanc::ResourceType_Study, orthancId);
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, patient));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Study, orthancId));
+    AddResourceInternal(target, Orthanc::ResourceType_Study, orthancId, labels);
   }
 
   
   void AuthorizationParserBase::AddOrthancPatient(AccessedResources& target,
                                                   const std::string& orthancId)
   {
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, orthancId);
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, orthancId));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, orthancId, labels);
   }
 
   
@@ -98,8 +123,13 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
-    target.push_back(AccessedResource(Orthanc::ResourceType_Study, study, studyDicomUid));
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, patient));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient, labels);
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Study, study));
+    target.push_back(AccessedResource(Orthanc::ResourceType_Study, study, studyDicomUid, labels));
   }
 
   void AuthorizationParserBase::AddDicomPatient(AccessedResources& target,
@@ -112,7 +142,10 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
-    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient);
+    std::set<std::string> labels;
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Patient, patient));
+    AddResourceInternal(target, Orthanc::ResourceType_Patient, patient, labels);
   }
   
   void AuthorizationParserBase::AddDicomSeries(AccessedResources& target,
@@ -126,8 +159,12 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
+    std::set<std::string> labels;
+
     AddDicomStudy(target, studyDicomUid);
-    target.push_back(AccessedResource(Orthanc::ResourceType_Series, series, seriesDicomUid));
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Series, series));
+    target.push_back(AccessedResource(Orthanc::ResourceType_Series, series, seriesDicomUid, labels));
   }
 
   
@@ -144,8 +181,12 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
     }
 
+    std::set<std::string> labels;
+
     AddDicomSeries(target, studyDicomUid, seriesDicomUid);
-    target.push_back(AccessedResource(Orthanc::ResourceType_Instance, instance, instanceDicomUid));
+
+    resourceHierarchy_->GetLabels(labels, OrthancResource(Orthanc::ResourceType_Instance, instance));
+    target.push_back(AccessedResource(Orthanc::ResourceType_Instance, instance, instanceDicomUid, labels));
   }
 
   

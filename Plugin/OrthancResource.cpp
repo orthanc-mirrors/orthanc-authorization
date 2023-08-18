@@ -20,6 +20,8 @@
 
 #include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
 
+static const char* LABELS_KEY = "Labels";
+
 namespace OrthancPlugins
 {
   void OrthancResource::GetDicomUidInternal(std::string& result,
@@ -157,7 +159,8 @@ namespace OrthancPlugins
     
   bool OrthancResource::GetHierarchy(std::string& dicomUid /* out */,
                                      OrthancResource& parent /* out */,
-                                     std::list<OrthancResource>& children /* out */) const
+                                     std::list<OrthancResource>& children /* out */,
+                                     std::set<std::string>& labels) const
   {
     Json::Value content;
         
@@ -235,7 +238,24 @@ namespace OrthancPlugins
         children.push_back(OrthancResource(childrenType, child.asString()));
       }
     }
-        
+
+    labels.clear();
+    if (content.isMember(LABELS_KEY) || 
+        content[LABELS_KEY].type() != Json::arrayValue)
+    {
+      for (Json::Value::ArrayIndex i = 0; i < content[LABELS_KEY].size(); i++)
+      {
+        const Json::Value& label = content[LABELS_KEY][i];
+
+        if (label.type() != Json::stringValue)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_Plugin);
+        }
+
+        labels.insert(label.asString());
+      }
+    }
+
     return true;
   }
 

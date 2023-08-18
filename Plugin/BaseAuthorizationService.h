@@ -36,7 +36,7 @@ namespace OrthancPlugins
                                    const std::string& tokenValue) = 0;
     
     virtual bool GetUserProfileInternal(unsigned int& validity,
-                                        Json::Value& profile /* out */,
+                                        UserProfile& profile /* out */,
                                         const Token* token,
                                         const std::string& tokenValue) = 0;
 
@@ -67,7 +67,7 @@ namespace OrthancPlugins
     }
 
     virtual bool GetUserProfile(unsigned int& validity,
-                                Json::Value& profile /* out */,
+                                UserProfile& profile /* out */,
                                 const Token& token,
                                 const std::string& tokenValue)
     {
@@ -75,7 +75,7 @@ namespace OrthancPlugins
     }
 
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
-                                         Json::Value& profile /* out */)
+                                         UserProfile& profile /* out */)
     {
       return GetUserProfileInternal(validity, profile, NULL, "");
     }

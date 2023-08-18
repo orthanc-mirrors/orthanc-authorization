@@ -19,6 +19,7 @@
 #pragma once
 
 #include "Enumerations.h"
+#include <set>
 
 namespace OrthancPlugins
 {
@@ -28,15 +29,19 @@ namespace OrthancPlugins
     AccessLevel    level_;
     std::string    orthancId_;
     std::string    dicomUid_;
+    std::set<std::string> labels_;
 
   public:
     AccessedResource(AccessLevel level,
                      const std::string& orthancId,
-                     const std::string& dicomUid);
+                     const std::string& dicomUid,
+                     const std::set<std::string>& labels
+                     );
 
     AccessedResource(Orthanc::ResourceType level,
                      const std::string& orthancId,
-                     const std::string& dicomUid);
+                     const std::string& dicomUid,
+                     const std::set<std::string>& labels);
 
     AccessLevel GetLevel() const
     {
@@ -49,5 +54,7 @@ namespace OrthancPlugins
     }
 
     const std::string& GetDicomUid() const;
+
+    const std::set<std::string>& GetLabels() const;
   };
 }

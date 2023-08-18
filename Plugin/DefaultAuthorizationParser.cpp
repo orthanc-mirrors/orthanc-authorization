@@ -192,7 +192,9 @@ namespace OrthancPlugins
       s = s.substr(0, s.length() - 1);
     }
         
-    target.push_back(AccessedResource(AccessLevel_System, s, ""));
+    std::set<std::string> labels;
+
+    target.push_back(AccessedResource(AccessLevel_System, s, "", labels));
     return true;
   }
 }

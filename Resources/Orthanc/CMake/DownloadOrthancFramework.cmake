@@ -1,8 +1,8 @@
 # Orthanc - A Lightweight, RESTful DICOM Store
 # Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
 # Department, University Hospital of Liege, Belgium
-# Copyright (C) 2017-2022 Osimis S.A., Belgium
-# Copyright (C) 2021-2022 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+# Copyright (C) 2017-2023 Osimis S.A., Belgium
+# Copyright (C) 2021-2023 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -154,6 +154,10 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "hg" OR
         set(ORTHANC_FRAMEWORK_MD5 "ede3de356493a8868545f8cb4b8bc8b5")
       elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "1.11.3")
         set(ORTHANC_FRAMEWORK_MD5 "f941c0f5771db7616e7b7961026a60e2")
+      elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "1.12.0")
+        set(ORTHANC_FRAMEWORK_MD5 "d32a0cde03b6eb603d8dd2b33d38bf1b")
+      elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "1.12.1")
+        set(ORTHANC_FRAMEWORK_MD5 "8a435140efc8ff4a01d8242f092f21de")
 
       # Below this point are development snapshots that were used to
       # release some plugin, before an official release of the Orthanc
@@ -313,7 +317,7 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "web")
   else()
     # Default case: Download from the official Web site
     set(ORTHANC_FRAMEMORK_FILENAME Orthanc-${ORTHANC_FRAMEWORK_VERSION}.tar.gz)
-    set(ORTHANC_FRAMEWORK_URL "http://orthanc.osimis.io/ThirdPartyDownloads/orthanc-framework/${ORTHANC_FRAMEMORK_FILENAME}")
+    set(ORTHANC_FRAMEWORK_URL "https://orthanc.uclouvain.be/third-party-downloads/orthanc-framework/${ORTHANC_FRAMEMORK_FILENAME}")
   endif()
 
   set(ORTHANC_FRAMEWORK_ARCHIVE "${CMAKE_SOURCE_DIR}/ThirdPartyDownloads/${ORTHANC_FRAMEMORK_FILENAME}")
