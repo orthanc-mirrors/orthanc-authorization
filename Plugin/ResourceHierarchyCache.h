@@ -107,6 +107,10 @@ namespace OrthancPlugins
     void AddParentLink(Orthanc::ResourceType childLevel,
                        const std::string& childOrthancId,
                        const std::string& parentOrthancId);
+
+    void AddLabels(Orthanc::ResourceType level,
+                   const std::string& orthancId,
+                   const std::string& serializedLabels);
 #endif
   };
 }

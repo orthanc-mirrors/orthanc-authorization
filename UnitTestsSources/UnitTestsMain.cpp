@@ -74,6 +74,11 @@ TEST(DefaultAuthorizationParser, Parse)
   cache->AddParentLink(Orthanc::ResourceType_Series, seriesOrthancId, studyOrthancId);
   cache->AddParentLink(Orthanc::ResourceType_Study, studyOrthancId, patientOrthancId);
 
+  cache->AddLabels(Orthanc::ResourceType_Series, seriesOrthancId, "series-label");
+  cache->AddLabels(Orthanc::ResourceType_Study, studyOrthancId, "study-label");
+  cache->AddLabels(Orthanc::ResourceType_Instance, instanceOrthancId, "instance-label");
+  cache->AddLabels(Orthanc::ResourceType_Patient, patientOrthancId, "patient-label");
+
   IAuthorizationParser::AccessedResources accesses;
   AssociativeArray noGetArguments(0, NULL, NULL, false);
 

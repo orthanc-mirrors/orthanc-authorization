@@ -250,6 +250,14 @@ namespace OrthancPlugins
   {
     cache_->Store(ComputeKey(childLevel, childOrthancId), parentOrthancId, 0 /* no expiration */);
   }
+
+  void ResourceHierarchyCache::AddLabels(Orthanc::ResourceType level,
+                                         const std::string& orthancId,
+                                         const std::string& serializedLabels)
+  {
+    labels_->Store(ComputeKey(level, orthancId), serializedLabels, 0 /* no expiration */);
+  }
+
 #endif
 
 }
