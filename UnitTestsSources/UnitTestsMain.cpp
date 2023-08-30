@@ -26,9 +26,12 @@
 #include "../Plugin/DefaultAuthorizationParser.h"
 #include "../Plugin/AssociativeArray.h"
 #include "../Plugin/AccessedResource.h"
+#include "../Plugin/IAuthorizationService.h"
 #include "../Plugin/MemoryCache.h"
 #include "../Plugin/PermissionParser.h"
 #include "../Plugin/ResourceHierarchyCache.h"
+
+extern void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile);
 
 using namespace OrthancPlugins;
 
@@ -298,6 +301,333 @@ TEST(DefaultAuthorizationParser, Parse)
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/dicom-web/servers/test/qido"));
 
 }
+
+bool IsInJsonArray(const char* needle, const Json::Value& array)
+{
+  for (Json::ArrayIndex i = 0; i < array.size(); ++i)
+  {
+    if (array[i].asString() == needle)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+TEST(ToolsFindLabels, AdjustQueryForUserWithoutRestrictions)
+{
+  // user who has access to all labels
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  profile.authorizedLabels.insert("*");
+
+  { // no labels before transformation -> no labels after 
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_FALSE(query.isMember("Labels"));
+    ASSERT_FALSE(query.isMember("LabelsConstraint"));
+  }
+
+  { // missing LabelsConstraint -> throw
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // simple 'All' label constraint is not modified since user has access to all labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "All";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("a", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("All", query["LabelsConstraint"].asString());
+  }
+
+  { // simple 'Any' label constraint is not modified since user has access to all labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "Any";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("a", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("Any", query["LabelsConstraint"].asString());
+  }
+
+  { // simple 'None' label constraint is not modified since user has access to all labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "None";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("a", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("None", query["LabelsConstraint"].asString());
+  }
+
+}
+
+
+TEST(ToolsFindLabels, AdjustQueryForUserWithAuthorizedLabelsRestrictions)
+{
+  // user who has access only to "b" and "c"
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  profile.authorizedLabels.insert("b");
+  profile.authorizedLabels.insert("c");
+
+  { // no labels before transformation -> "b", "c" label after 
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_EQ("Any", query["LabelsConstraint"].asString());
+  }
+
+  { // missing LabelsConstraint -> throw
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'All' label constraint is not modified if it contains the labels that are accessible to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["Labels"].append("c");
+    query["LabelsConstraint"] = "All";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_EQ("All", query["LabelsConstraint"].asString());
+  }
+
+  { // 'All' label constraint is not modified if it contains a subset of the labels that are accessible to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "All";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(1u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("All", query["LabelsConstraint"].asString());
+  }
+
+  { // 'All' label constraint becomes invalid if it contains a label that is not accessible to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "All";
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'Any' label constraint is not modified if it contains the labels that are accessible to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["Labels"].append("c");
+    query["LabelsConstraint"] = "Any";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_EQ("Any", query["LabelsConstraint"].asString());
+  }
+
+  { // 'Any' label constraint is not modified if it contains a subset of the labels that are accessible to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "Any";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(1u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("Any", query["LabelsConstraint"].asString());
+  }
+
+  { // 'Any' label constraint only contains the intersection of the initial requested labels and the ones authorized to the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "Any";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(1u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_EQ("Any", query["LabelsConstraint"].asString());
+  }
+
+  { // 'Any' label constraint can not be modified if the initial requested labels have nothing in common with the authorized labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("d");
+    query["Labels"].append("e");
+    query["LabelsConstraint"] = "Any";
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'None' label constraint can not be modified since the user has only 'authorized_labels' -> throw
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["Labels"].append("c");
+    query["LabelsConstraint"] = "None";
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+}
+
+TEST(ToolsFindLabels, AdjustQueryForUserWithForbiddenLabelsRestrictions)
+{
+  // user who has forbidden access to "b" and "c"
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  profile.forbiddenLabels.insert("b");
+  profile.forbiddenLabels.insert("c");
+
+  { // no labels before transformation -> "b", "c" label after (with a 'None' constraint)
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+
+    AdjustToolsFindQueryLabels(query, profile);
+
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_EQ("None", query["LabelsConstraint"].asString());
+  }
+
+  { // missing LabelsConstraint -> throw
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("a");
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'All' label constraint can not be modified for user with forbidden labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["Labels"].append("c");
+    query["LabelsConstraint"] = "All";
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'Any' label constraint can not be modified for user with forbidden labels
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["Labels"].append("c");
+    query["LabelsConstraint"] = "Any";
+
+    ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
+  }
+
+  { // 'None' label constraint are modified to always contain at least all forbidden_labels of the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("b");
+    query["LabelsConstraint"] = "None";
+
+    AdjustToolsFindQueryLabels(query, profile);
+    ASSERT_EQ(2u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_EQ("None", query["LabelsConstraint"].asString());
+  }
+
+  { // 'None' label constraint are modified to always contain at least all forbidden_labels of the user
+    Json::Value query;
+    query["Query"] = Json::objectValue;
+    query["Query"]["PatientID"] = "*";
+    query["Labels"] = Json::arrayValue;
+    query["Labels"].append("d");
+    query["LabelsConstraint"] = "None";
+
+    AdjustToolsFindQueryLabels(query, profile);
+    ASSERT_EQ(3u, query["Labels"].size());
+    ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
+    ASSERT_TRUE(IsInJsonArray("d", query["Labels"]));
+    ASSERT_EQ("None", query["LabelsConstraint"].asString());
+  }
+}
+
 }
 
 int main(int argc, char **argv)

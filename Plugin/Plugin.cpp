@@ -27,6 +27,7 @@
 #include <Compatibility.h>  // For std::unique_ptr<>
 #include <Logging.h>
 #include <Toolbox.h>
+#include <SerializationToolbox.h>
 #include <EmbeddedResources.h>
 
 
@@ -340,6 +341,193 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
+
+bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& profile, const OrthancPluginHttpRequest* request)
+{
+  OrthancPlugins::AssociativeArray headers
+    (request->headersCount, request->headersKeys, request->headersValues, false);
+
+  OrthancPlugins::AssociativeArray getArguments
+    (request->getCount, request->getKeys, request->getValues, true);
+
+  // Loop over all the authorization tokens stored in the HTTP
+  // headers, until finding one that is granted
+  for (std::set<OrthancPlugins::Token>::const_iterator
+          token = tokens_.begin(); token != tokens_.end(); ++token)
+  {
+    OrthancPlugins::IAuthorizationService::UserProfile tryProfile;
+
+    std::string value;
+
+    bool hasValue = false;
+    switch (token->GetType())
+    {
+      case OrthancPlugins::TokenType_HttpHeader:
+        hasValue = headers.GetValue(value, token->GetKey());
+        break;
+
+      case OrthancPlugins::TokenType_GetArgument:
+        hasValue = getArguments.GetValue(value, token->GetKey());
+        break;
+
+      default:
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+    }
+    
+    if (hasValue)
+    {
+      unsigned int validity; // not used
+      if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
+      {
+        profile = tryProfile;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  std::set<std::string> labelsToFind;
+  std::string labelsConstraint = "Invalid";
+
+  if (query.isMember("Labels") && query.isMember("LabelsConstraint"))
+  {
+    Orthanc::SerializationToolbox::ReadSetOfStrings(labelsToFind, query, "Labels");
+    labelsConstraint = Orthanc::SerializationToolbox::ReadString(query, "LabelsConstraint");
+  }
+  else if (query.isMember("Labels") || query.isMember("LabelsConstraint"))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query, both 'Labels' and 'LabelsConstraint' must be defined together if one of them is defined.");
+  }
+
+  if (profile.authorizedLabels.size() > 0 || profile.forbiddenLabels.size() > 0)
+  {
+    // if the user has access to all labels: no need to transform the tools/find body, we keep it as is
+    if (profile.authorizedLabels.find("*") == profile.authorizedLabels.end())
+    { // the user does not have access to all labels -> transform the tools/find body
+
+      if (labelsToFind.size() == 0)
+      {
+        if (profile.authorizedLabels.size() > 0)
+        {
+          Orthanc::SerializationToolbox::WriteSetOfStrings(query, profile.authorizedLabels, "Labels");
+          query["LabelsConstraint"] = "Any";
+        }
+        else if (profile.forbiddenLabels.size() > 0)
+        {
+          if (labelsToFind.size() == 0)
+          { // in this case, we can add a None constraint
+            Orthanc::SerializationToolbox::WriteSetOfStrings(query, profile.forbiddenLabels, "Labels");
+            query["LabelsConstraint"] = "None";
+          }
+        }
+      }
+      else if (labelsConstraint == "All")
+      {
+        if (profile.authorizedLabels.size() > 0)
+        {
+          if (!Orthanc::Toolbox::IsSetInSet(labelsToFind, profile.authorizedLabels))
+          {
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when the user does not have access to all listed labels.");
+          }
+        }
+        else if (profile.forbiddenLabels.size() > 0)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when the user has forbidden labels.");                
+        }
+      }
+      else if (labelsConstraint == "Any")
+      {
+        if (profile.authorizedLabels.size() > 0)
+        {
+          std::set<std::string> newLabelsToFind;
+          for (std::set<std::string>::const_iterator itLabel = labelsToFind.begin(); itLabel != labelsToFind.end(); ++itLabel)
+          {
+            if (profile.authorizedLabels.find(*itLabel) != profile.authorizedLabels.end())
+            {
+              newLabelsToFind.insert(*itLabel);
+            }
+          }
+
+          if (newLabelsToFind.size() == 0)
+          {
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when none of the labels to find is authorized for the user.");                
+          }
+
+          query.removeMember("Labels");
+          Orthanc::SerializationToolbox::WriteSetOfStrings(query, newLabelsToFind, "Labels");
+        }
+        else if (profile.forbiddenLabels.size() > 0)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query with 'Any' labels constraint when the user has forbidden labels.");                
+        }
+      }
+      else if (labelsConstraint == "None")
+      {
+        if (profile.authorizedLabels.size() > 0)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");        
+        }
+        else if (profile.forbiddenLabels.size() > 0)
+        {
+          std::set<std::string> newLabelsToFind = labelsToFind;
+          Orthanc::Toolbox::AppendSets(newLabelsToFind, profile.forbiddenLabels);
+
+          query.removeMember("Labels");
+          Orthanc::SerializationToolbox::WriteSetOfStrings(query, newLabelsToFind, "Labels");
+        }
+      }
+    }
+  }
+}
+
+void ToolsFind(OrthancPluginRestOutput* output,
+               const char* /*url*/,
+               const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Post)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "POST");
+  }
+  else
+  {
+    // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
+
+    Json::Value body;
+    if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+    }
+
+    // If the logged in user has restrictions on the labels he can access, modify the tools/find payload before reposting it to Orthanc
+    OrthancPlugins::IAuthorizationService::UserProfile profile;
+    if (GetUserProfileInternal(profile, request))
+    {
+      AdjustToolsFindQueryLabels(body, profile);
+
+      Json::Value result;
+      if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
+      {
+        OrthancPlugins::AnswerJson(result, output);
+      }
+
+    }
+    else
+    {
+      OrthancPluginSendHttpStatusCode(context, output, 403); // TODO: check
+    }
+
+
+  }
+}
+
+
 void CreateToken(OrthancPluginRestOutput* output,
                  const char* /*url*/,
                  const OrthancPluginHttpRequest* request)
@@ -495,6 +683,7 @@ void DecodeToken(OrthancPluginRestOutput* output,
   }
 }
 
+
 void GetUserProfile(OrthancPluginRestOutput* output,
                     const char* /*url*/,
                     const OrthancPluginHttpRequest* request)
@@ -507,63 +696,27 @@ void GetUserProfile(OrthancPluginRestOutput* output,
   }
   else
   {
-    OrthancPlugins::AssociativeArray headers
-      (request->headersCount, request->headersKeys, request->headersValues, false);
-
-    OrthancPlugins::AssociativeArray getArguments
-      (request->getCount, request->getKeys, request->getValues, true);
-
-    // Loop over all the authorization tokens stored in the HTTP
-    // headers, until finding one that is granted
-    for (std::set<OrthancPlugins::Token>::const_iterator
-            token = tokens_.begin(); token != tokens_.end(); ++token)
+    OrthancPlugins::IAuthorizationService::UserProfile profile;
+    if (GetUserProfileInternal(profile, request))
     {
-      OrthancPlugins::IAuthorizationService::UserProfile profile;
-
-      std::string value;
-
-      bool hasValue = false;
-      switch (token->GetType())
+      Json::Value jsonProfile;
+      jsonProfile["name"] = profile.name;
+      jsonProfile["permissions"] = Json::arrayValue;
+      for (std::set<std::string>::const_iterator it = profile.permissions.begin(); it != profile.permissions.end(); ++it)
       {
-        case OrthancPlugins::TokenType_HttpHeader:
-          hasValue = headers.GetValue(value, token->GetKey());
-          break;
-
-        case OrthancPlugins::TokenType_GetArgument:
-          hasValue = getArguments.GetValue(value, token->GetKey());
-          break;
-
-        default:
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+        jsonProfile["permissions"].append(*it);
       }
-      
-      if (hasValue)
+      for (std::set<std::string>::const_iterator it = profile.authorizedLabels.begin(); it != profile.authorizedLabels.end(); ++it)
       {
-        unsigned int validity; // not used
-        if (authorizationService_->GetUserProfile(validity, profile, *token, value))
-        {
-          Json::Value jsonProfile;
-          jsonProfile["name"] = profile.name;
-          jsonProfile["permissions"] = Json::arrayValue;
-          for (std::set<std::string>::const_iterator it = profile.permissions.begin(); it != profile.permissions.end(); ++it)
-          {
-            jsonProfile["permissions"].append(*it);
-          }
-          for (std::set<std::string>::const_iterator it = profile.authorizedLabels.begin(); it != profile.authorizedLabels.end(); ++it)
-          {
-            jsonProfile["authorized-labels"].append(*it);
-          }
-          for (std::set<std::string>::const_iterator it = profile.forbiddenLabels.begin(); it != profile.forbiddenLabels.end(); ++it)
-          {
-            jsonProfile["forbidden-labels"].append(*it);
-          }
-
-          OrthancPlugins::AnswerJson(jsonProfile, output);
-          return;
-        }
+        jsonProfile["authorized-labels"].append(*it);
       }
+      for (std::set<std::string>::const_iterator it = profile.forbiddenLabels.begin(); it != profile.forbiddenLabels.end(); ++it)
+      {
+        jsonProfile["forbidden-labels"].append(*it);
+      }
+
+      OrthancPlugins::AnswerJson(jsonProfile, output);
     }
-
   }
 }
 
@@ -909,6 +1062,8 @@ extern "C"
         {
           OrthancPlugins::RegisterRestCallback<CreateToken>("/auth/tokens/(.*)", true);
         }
+
+        OrthancPlugins::RegisterRestCallback<ToolsFind>("/tools/find", true);
 
 
         if (authorizationParser_.get() != NULL || permissionParser_.get() != NULL)
