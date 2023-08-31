@@ -32,7 +32,6 @@ namespace OrthancPlugins
   static const char* VALIDITY = "validity";
   static const char* PERMISSIONS = "permissions";
   static const char* AUTHORIZED_LABELS = "authorized-labels";
-  static const char* FORBIDDEN_LABELS = "forbidden-labels";
   static const char* USER_NAME = "name";
 
 
@@ -377,11 +376,9 @@ namespace OrthancPlugins
           !jsonProfile.isMember(PERMISSIONS) ||
           !jsonProfile.isMember(VALIDITY) ||
           !jsonProfile.isMember(AUTHORIZED_LABELS) ||
-          !jsonProfile.isMember(FORBIDDEN_LABELS) ||
           !jsonProfile.isMember(USER_NAME) ||
           jsonProfile[PERMISSIONS].type() != Json::arrayValue ||
           jsonProfile[AUTHORIZED_LABELS].type() != Json::arrayValue ||
-          jsonProfile[FORBIDDEN_LABELS].type() != Json::arrayValue ||
           jsonProfile[VALIDITY].type() != Json::intValue ||
           jsonProfile[USER_NAME].type() != Json::stringValue)
       {
@@ -401,21 +398,10 @@ namespace OrthancPlugins
       {
         profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
       }
-      for (Json::ArrayIndex i = 0; i < jsonProfile[FORBIDDEN_LABELS].size(); ++i)
-      {
-        profile.forbiddenLabels.insert(jsonProfile[FORBIDDEN_LABELS][i].asString());
-      }
 
-      if (profile.authorizedLabels.size() > 0 && profile.forbiddenLabels.size() > 0)
+      if (profile.authorizedLabels.size() == 0)
       {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
-                                        "Syntax error in the result of the Auth Web service, the UserProfile can not contain both authorized and forbidden labels");
-      }
-
-      if (profile.authorizedLabels.size() == 0 && profile.forbiddenLabels.size() == 0)
-      {
-        LOG(WARNING) << "The UserProfile does not contain any authorized or forbidden labels, assuming the user has access to all data (equivalent to \"authorized_labels\": [\"*\"]) !";
-        profile.authorizedLabels.insert("*");
+        LOG(WARNING) << "The UserProfile does not contain any authorized labels, you should add, e.g, \"authorized_labels\": [\"*\"] to grant him access to all labels !";
       }
 
       return true;

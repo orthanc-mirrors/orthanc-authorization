@@ -58,7 +58,6 @@ namespace OrthancPlugins
       std::string name;
       std::set<std::string> permissions;
       std::set<std::string> authorizedLabels;
-      std::set<std::string> forbiddenLabels;
     };
 
     virtual ~IAuthorizationService()
