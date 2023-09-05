@@ -42,8 +42,7 @@ namespace OrthancPlugins
 
     virtual bool HasUserPermissionInternal(unsigned int& validity,
                                            const std::string& permission,
-                                           const Token* token,
-                                           const std::string& tokenValue) = 0;
+                                           const UserProfile& profile) = 0;
 
   public:
     virtual ~BaseAuthorizationService()
@@ -82,8 +81,7 @@ namespace OrthancPlugins
 
     virtual bool HasUserPermission(unsigned int& validity /* out */,
                                    const std::set<std::string>& anyOfPermissions,
-                                   const Token& token,
-                                   const std::string& tokenValue)
+                                   const UserProfile& profile)
     {
       if (anyOfPermissions.size() == 0)
       {
@@ -92,7 +90,7 @@ namespace OrthancPlugins
 
       for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
       {
-        if (HasUserPermissionInternal(validity, *it, &token, tokenValue))
+        if (HasUserPermissionInternal(validity, *it, profile))
         {
           return true;
         }
@@ -108,9 +106,12 @@ namespace OrthancPlugins
         return true;
       }
 
+      UserProfile anonymousUserProfile;
+      anonymousUserProfile.tokenType = TokenType_None;
+
       for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
       {
-        if (HasUserPermissionInternal(validity, *it, NULL, ""))
+        if (HasUserPermissionInternal(validity, *it, anonymousUserProfile))
         {
           return true;
         }

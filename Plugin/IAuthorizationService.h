@@ -58,6 +58,11 @@ namespace OrthancPlugins
       std::string name;
       std::set<std::string> permissions;
       std::set<std::string> authorizedLabels;
+
+      // the source token key/value that identified the user
+      TokenType   tokenType;
+      std::string tokenKey;
+      std::string tokenValue;
     };
 
     virtual ~IAuthorizationService()
@@ -84,8 +89,7 @@ namespace OrthancPlugins
 
     virtual bool HasUserPermission(unsigned int& validity /* out */,
                                    const std::set<std::string>& anyOfPermissions,
-                                   const Token& token,
-                                   const std::string& tokenValue) = 0;
+                                   const UserProfile& profile) = 0;
 
     virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
                                             const std::set<std::string>& anyOfPermissions) = 0;

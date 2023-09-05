@@ -389,7 +389,10 @@ namespace OrthancPlugins
       validity = jsonProfile[VALIDITY].asUInt();
       
       profile.name = jsonProfile[USER_NAME].asString();
-      
+      profile.tokenKey = token->GetKey();
+      profile.tokenType = token->GetType();
+      profile.tokenValue = tokenValue;
+
       for (Json::ArrayIndex i = 0; i < jsonProfile[PERMISSIONS].size(); ++i)
       {
         profile.permissions.insert(jsonProfile[PERMISSIONS][i].asString());
@@ -414,21 +417,14 @@ namespace OrthancPlugins
 
   bool AuthorizationWebService::HasUserPermissionInternal(unsigned int& validity,
                                                           const std::string& permission,
-                                                          const Token* token,
-                                                          const std::string& tokenValue)
+                                                          const UserProfile& profile)
   {
-    UserProfile profile;
-
-
-    if (GetUserProfileInternal(validity, profile, token, tokenValue))
+    const std::set<std::string>& permissions = profile.permissions;
+    for (std::set<std::string>::const_iterator it = permissions.begin(); it != permissions.end(); ++it)
     {
-      std::set<std::string>& permissions = profile.permissions;
-      for (std::set<std::string>::const_iterator it = permissions.begin(); it != permissions.end(); ++it)
+      if (permission == *it)
       {
-        if (permission == *it)
-        {
-          return true;
-        }
+        return true;
       }
     }
 

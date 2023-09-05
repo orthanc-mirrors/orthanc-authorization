@@ -25,7 +25,9 @@ namespace OrthancPlugins
   enum TokenType
   {
     TokenType_HttpHeader,
-    TokenType_GetArgument
+    TokenType_GetArgument,
+
+    TokenType_None
   };
 
 

@@ -32,6 +32,8 @@ namespace OrthancPlugins
     Token(TokenType type,
           const std::string& key);
 
+    Token(const Token& other);
+
     TokenType GetType() const
     {
       return type_;

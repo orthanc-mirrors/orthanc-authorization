@@ -42,14 +42,13 @@ namespace OrthancPlugins
                            const std::string& tokenValue) ORTHANC_OVERRIDE;
     
     virtual bool GetUserProfileInternal(unsigned int& validity,
-                                UserProfile& profile /* out */,
-                                const Token* token,
-                                const std::string& tokenValue) ORTHANC_OVERRIDE;
+                                        UserProfile& profile /* out */,
+                                        const Token* token,
+                                        const std::string& tokenValue) ORTHANC_OVERRIDE;
 
     virtual bool HasUserPermissionInternal(unsigned int& validity,
-                                   const std::string& permission,
-                                   const Token* token,
-                                   const std::string& tokenValue) ORTHANC_OVERRIDE;
+                                           const std::string& permission,
+                                           const UserProfile& profile) ORTHANC_OVERRIDE;
   
   public:
     AuthorizationWebService(const std::string& tokenValidationUrl, 

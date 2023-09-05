@@ -58,8 +58,7 @@ namespace OrthancPlugins
 
     virtual bool HasUserPermissionInternal(unsigned int& validity,
                                            const std::string& permission,
-                                           const Token* token,
-                                           const std::string& tokenValue) ORTHANC_OVERRIDE;
+                                           const UserProfile& profile) ORTHANC_OVERRIDE;
 
 
   public:

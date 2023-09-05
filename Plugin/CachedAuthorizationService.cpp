@@ -123,12 +123,12 @@ namespace OrthancPlugins
 
   bool CachedAuthorizationService::HasUserPermissionInternal(unsigned int& validity,
                                                              const std::string& permission,
-                                                             const Token* token,
-                                                             const std::string& tokenValue)
+                                                             const UserProfile& profile)
   {
     assert(decorated_.get() != NULL);
 
-    std::string key = ComputeKey(permission, token, tokenValue);
+    Token token(profile.tokenType, profile.tokenKey);
+    std::string key = ComputeKey(permission, &token, profile.tokenValue);
     std::string value;
 
     if (cache_->Retrieve(value, key))
@@ -137,7 +137,7 @@ namespace OrthancPlugins
       return (value == "1");
     }        
         
-    bool granted = decorated_->HasUserPermissionInternal(validity, permission, token, tokenValue);
+    bool granted = decorated_->HasUserPermissionInternal(validity, permission, profile);
 
     if (granted)
     {

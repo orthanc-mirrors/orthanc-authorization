@@ -73,6 +73,71 @@ public:
   }
 };
 
+bool HasAccessToAllLabels(const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  return (profile.authorizedLabels.find("*") != profile.authorizedLabels.end());
+}
+
+bool HasAccessToSomeLabels(const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  return (profile.authorizedLabels.size() > 0);
+}
+
+
+static bool CheckAuthorizedLabelsForResource(const std::string& uri,
+                                             const OrthancPlugins::AssociativeArray& getArguments,
+                                             const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  if (HasAccessToAllLabels(profile))
+  {
+    return true;
+  }
+
+  if (authorizationParser_.get() != NULL &&
+      authorizationService_.get() != NULL)
+  {
+    // Parse the resources that are accessed through this URI
+    OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
+
+    if (!authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
+    {
+      return false;  // Unable to parse this URI
+    }
+
+    // Loop over all the accessed resources to ensure access is
+    // granted to each of them
+    for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator
+        access = accesses.begin(); access != accesses.end(); ++access)
+    {
+      // Ignored the access levels that are unchecked
+      // (cf. "UncheckedLevels" option)
+      if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
+      {
+        std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access->GetLevel()) + " \"" + access->GetOrthancId() + "\" is allowed wrt Labels for User '" + profile.name + "'";
+        const std::set<std::string>& resourceLabels = access->GetLabels();
+        std::set<std::string> authorizedResourceLabels;
+
+        Orthanc::Toolbox::GetIntersection(authorizedResourceLabels, resourceLabels, profile.authorizedLabels);
+
+        if (authorizedResourceLabels.size() == 0)
+        {
+          LOG(INFO) << msg << " -> not granted, no authorized labels";
+          return false;
+        }
+        else
+        {
+          LOG(INFO) << msg << " -> granted, at least one authorized labels";
+          return true;
+        }
+      }
+    }
+
+    // Access is granted to all the resources that are 'unchecked'
+    return true;
+  }
+
+  return false;  // TODO or true ???
+}
 
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
@@ -154,16 +219,26 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         if (authTokens.empty())
         {
           std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
-          LOG(INFO) << msg;
-          if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
-          {
-            LOG(INFO) << msg << " -> granted";
-            return 1;
-          }
-          else
-          {
-            LOG(INFO) << msg << " -> not granted";
-          }
+          
+          // TODO: how to handle anonymous user ?
+          
+          // LOG(INFO) << msg;
+          // if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
+          // {
+          //     // TODO: check labels permissions
+          //   LOG(INFO) << msg << " -> granted";
+
+          //   if (CheckAuthorizedLabelsForResource(uri, getArguments, profile))
+          //   {
+          //     return 1;
+          //   }
+          // }
+          // else
+          // {
+          //   LOG(INFO) << msg << " -> not granted";
+          // }
+          LOG(INFO) << msg << " -> not granted, TODO ????";
+          return 0;
         }
         else
         {
@@ -172,15 +247,25 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             std::string msg = std::string("Testing whether user has the required permissions '") + JoinStrings(requiredPermissions) + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "' required to match '" + matchedPattern + "'";
 
             LOG(INFO) << msg;
-            if (authorizationService_->HasUserPermission(validity, requiredPermissions, authTokens[i].GetToken(), authTokens[i].GetValue()))
+            
+            OrthancPlugins::IAuthorizationService::UserProfile profile;
+            unsigned int validityNotUsed;
+            authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
+
+            if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
             {
-              // TODO: check labels permissions
               LOG(INFO) << msg << " -> granted";
-              return 1;
+
+              // check labels permissions
+              if (CheckAuthorizedLabelsForResource(uri, getArguments, profile))
+              {
+                return 1;
+              }
+              // not granted, but continue and check if a resource tokens grant access
             }
             else
             {
-              LOG(INFO) << msg << " -> not granted";
+              LOG(INFO) << msg << " -> not granted";  // but continue and check if a resource tokens grant access
             }
           }
         }
@@ -388,16 +473,6 @@ bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& 
   return false;
 }
 
-bool HasAccessToAllLabels(const OrthancPlugins::IAuthorizationService::UserProfile& profile)
-{
-  return (profile.authorizedLabels.find("*") != profile.authorizedLabels.end());
-}
-
-bool HasAccessToSomeLabels(const OrthancPlugins::IAuthorizationService::UserProfile& profile)
-{
-  return (profile.authorizedLabels.size() > 0);
-}
-
 void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
 {
   std::set<std::string> labelsToFind;
@@ -461,14 +536,10 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
       {
         if (profile.authorizedLabels.size() > 0)
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");        
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");
         }
       }
     }
-  }
-  else
-  {
-    // TODO what shall we do if the user has no authorized_labels ???
   }
 }
 
@@ -507,7 +578,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
     }
     else
     {
-      OrthancPluginSendHttpStatusCode(context, output, 403); // TODO: check
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: no user profile found, access to tools/find is forbidden.");
     }
   }
 }
@@ -556,10 +627,8 @@ void ToolsLabels(OrthancPluginRestOutput* output,
     }
     else
     {
-      OrthancPluginSendHttpStatusCode(context, output, 403); // TODO: check
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: no user profile found, access to tools/labels is forbidden.");
     }
-
-
   }
 }
 
@@ -945,7 +1014,6 @@ extern "C"
         if (!urlTokenCreationBase.empty())
         {
           LOG(WARNING) << "Authorization plugin: base url defined for Token Creation : " << urlTokenCreationBase;
-          // TODO Token Creation
         }
         else
         {
@@ -1012,24 +1080,28 @@ extern "C"
           OrthancPlugins::AccessLevel checkedLevel = OrthancPlugins::StringToAccessLevel(checkedLevelString);
           if (checkedLevel == OrthancPlugins::AccessLevel_Instance) 
           {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_System);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
           }
           else if (checkedLevel == OrthancPlugins::AccessLevel_Series) 
           {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_System);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);
           }
           else if (checkedLevel == OrthancPlugins::AccessLevel_Study) 
           {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_System);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Patient);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);
           }
           else if (checkedLevel == OrthancPlugins::AccessLevel_Patient) 
           {
+            uncheckedLevels_.insert(OrthancPlugins::AccessLevel_System);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Study);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Series);
             uncheckedLevels_.insert(OrthancPlugins::AccessLevel_Instance);

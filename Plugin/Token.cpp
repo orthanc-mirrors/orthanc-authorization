@@ -32,4 +32,15 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
     }
   }
+
+  Token::Token(const Token& other) :
+    type_(other.GetType()),
+    key_(other.GetKey())
+  {
+    if (key_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+    }
+  }
+
 }
