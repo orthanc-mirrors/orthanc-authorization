@@ -485,12 +485,12 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
   }
   else if (query.isMember("Labels") || query.isMember("LabelsConstraint"))
   {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query, both 'Labels' and 'LabelsConstraint' must be defined together if one of them is defined.");
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query, both 'Labels' and 'LabelsConstraint' must be defined together if one of them is defined.");
   }
 
   if (!HasAccessToSomeLabels(profile))
   {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to call tools/find when the user does not have access to any labels.");
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels.");
   }
   else if (profile.authorizedLabels.size() > 0)
   {
@@ -502,6 +502,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
       {
         if (profile.authorizedLabels.size() > 0)
         {
+          query.removeMember("Labels");
           Orthanc::SerializationToolbox::WriteSetOfStrings(query, profile.authorizedLabels, "Labels");
           query["LabelsConstraint"] = "Any";
         }
@@ -512,7 +513,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
         {
           if (!Orthanc::Toolbox::IsSetInSet(labelsToFind, profile.authorizedLabels))
           {
-            throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when the user does not have access to all listed labels.");
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when the user does not have access to all listed labels.");
           }
         }
       }
@@ -525,7 +526,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
 
           if (newLabelsToFind.size() == 0)
           {
-            throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when none of the labels to find is authorized for the user.");                
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when none of the labels to find is authorized for the user.");                
           }
 
           query.removeMember("Labels");
@@ -536,7 +537,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
       {
         if (profile.authorizedLabels.size() > 0)
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");
         }
       }
     }
@@ -578,7 +579,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
     }
     else
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: no user profile found, access to tools/find is forbidden.");
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, access to tools/find is forbidden.");
     }
   }
 }
@@ -627,7 +628,7 @@ void ToolsLabels(OrthancPluginRestOutput* output,
     }
     else
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_Unauthorized, "Auth plugin: no user profile found, access to tools/labels is forbidden.");
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, access to tools/labels is forbidden.");
     }
   }
 }
