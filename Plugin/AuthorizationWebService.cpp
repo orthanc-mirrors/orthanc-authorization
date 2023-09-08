@@ -33,7 +33,7 @@ namespace OrthancPlugins
   static const char* PERMISSIONS = "permissions";
   static const char* AUTHORIZED_LABELS = "authorized-labels";
   static const char* USER_NAME = "name";
-
+  
 
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
                                                   OrthancPluginHttpMethod method,
@@ -321,6 +321,41 @@ namespace OrthancPlugins
 
   }
 
+  void AuthorizationWebService::ToJson(Json::Value& jsonProfile, const UserProfile& profile)
+  {
+    jsonProfile = Json::objectValue;
+    jsonProfile[USER_NAME] = profile.name;
+    Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.authorizedLabels, AUTHORIZED_LABELS);
+    Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.permissions, PERMISSIONS);
+  }
+    
+  void AuthorizationWebService::FromJson(UserProfile& profile, const Json::Value& jsonProfile)
+  {
+    if (jsonProfile.type() != Json::objectValue ||
+        !jsonProfile.isMember(PERMISSIONS) ||
+        !jsonProfile.isMember(AUTHORIZED_LABELS) ||
+        !jsonProfile.isMember(USER_NAME) ||
+        jsonProfile[PERMISSIONS].type() != Json::arrayValue ||
+        jsonProfile[AUTHORIZED_LABELS].type() != Json::arrayValue ||
+        jsonProfile[USER_NAME].type() != Json::stringValue)
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat,
+                                      "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
+    }
+
+    profile.name = jsonProfile[USER_NAME].asString();
+
+    for (Json::ArrayIndex i = 0; i < jsonProfile[PERMISSIONS].size(); ++i)
+    {
+      profile.permissions.insert(jsonProfile[PERMISSIONS][i].asString());
+    }
+    for (Json::ArrayIndex i = 0; i < jsonProfile[AUTHORIZED_LABELS].size(); ++i)
+    {
+      profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
+    }
+  }
+
+
 
   bool AuthorizationWebService::GetUserProfileInternal(unsigned int& validity,
                                                        UserProfile& profile /* out */,
@@ -372,35 +407,18 @@ namespace OrthancPlugins
       Json::Value jsonProfile;
       authClient.ApplyAndThrowException(jsonProfile);
 
-      if (jsonProfile.type() != Json::objectValue ||
-          !jsonProfile.isMember(PERMISSIONS) ||
-          !jsonProfile.isMember(VALIDITY) ||
-          !jsonProfile.isMember(AUTHORIZED_LABELS) ||
-          !jsonProfile.isMember(USER_NAME) ||
-          jsonProfile[PERMISSIONS].type() != Json::arrayValue ||
-          jsonProfile[AUTHORIZED_LABELS].type() != Json::arrayValue ||
-          jsonProfile[VALIDITY].type() != Json::intValue ||
-          jsonProfile[USER_NAME].type() != Json::stringValue)
+      if (!jsonProfile.isMember(VALIDITY) ||
+        jsonProfile[VALIDITY].type() != Json::intValue)
       {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_NetworkProtocol,
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat,
                                         "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
       }
-
       validity = jsonProfile[VALIDITY].asUInt();
-      
-      profile.name = jsonProfile[USER_NAME].asString();
       profile.tokenKey = token->GetKey();
       profile.tokenType = token->GetType();
       profile.tokenValue = tokenValue;
 
-      for (Json::ArrayIndex i = 0; i < jsonProfile[PERMISSIONS].size(); ++i)
-      {
-        profile.permissions.insert(jsonProfile[PERMISSIONS][i].asString());
-      }
-      for (Json::ArrayIndex i = 0; i < jsonProfile[AUTHORIZED_LABELS].size(); ++i)
-      {
-        profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
-      }
+      FromJson(profile, jsonProfile);
 
       if (profile.authorizedLabels.size() == 0)
       {

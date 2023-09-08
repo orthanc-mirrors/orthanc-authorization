@@ -93,5 +93,9 @@ namespace OrthancPlugins
                              const std::string& tokenKey, 
                              const std::string& tokenValue);
 
+    static void ToJson(Json::Value& output, const UserProfile& profile);
+    
+    static void FromJson(UserProfile& profile, const Json::Value& input);
+
   };
 }

@@ -41,6 +41,8 @@ namespace OrthancPlugins
     boost::regex osimisViewerImages_;
     boost::regex osimisViewerStudies_;
 
+    boost::regex listOfResourcesPattern_;
+
   public:
     DefaultAuthorizationParser(ICacheFactory& factory,
                                const std::string& dicomWebRoot);
@@ -48,5 +50,7 @@ namespace OrthancPlugins
     virtual bool Parse(AccessedResources& target,
                        const std::string& uri,
                        const std::map<std::string, std::string>& getArguments);
+
+    virtual bool IsListOfResources(const std::string& uri);
   };
 }

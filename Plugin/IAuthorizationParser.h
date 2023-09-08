@@ -42,5 +42,7 @@ namespace OrthancPlugins
     virtual bool Parse(AccessedResources& target,
                        const std::string& uri,
                        const std::map<std::string, std::string>& getArguments) = 0;
+
+    virtual bool IsListOfResources(const std::string& uri) = 0;
   };
 }

@@ -17,6 +17,7 @@
  **/
 
 #include "CachedAuthorizationService.h"
+#include "AuthorizationWebService.h"
 
 #include <OrthancException.h>
 #include <Toolbox.h>
@@ -112,13 +113,49 @@ namespace OrthancPlugins
   }
 
   
-  bool CachedAuthorizationService::GetUserProfileInternal(unsigned int& validity,
+  bool CachedAuthorizationService::GetUserProfileInternal(unsigned int& validityNotUsed,
                                                           UserProfile& profile /* out */,
                                                           const Token* token,
                                                           const std::string& tokenValue)
   {
-    // no cache used when retrieving the full user profile
-    return decorated_->GetUserProfileInternal(validity, profile, token, tokenValue);
+    assert(decorated_.get() != NULL);
+
+    std::string key = ComputeKey("user-profile", token, tokenValue);
+    std::string serializedProfile;
+
+    if (cache_->Retrieve(serializedProfile, key))
+    {
+      // Return the previously cached profile
+      Json::Value jsonProfile;
+      
+      Orthanc::Toolbox::ReadJson(jsonProfile, serializedProfile);
+      
+      AuthorizationWebService::FromJson(profile, jsonProfile);
+
+      profile.tokenKey = token->GetKey();
+      profile.tokenType = token->GetType();
+      profile.tokenValue = tokenValue;
+
+      return true;
+    }        
+    else
+    {
+      unsigned int validity;
+
+      if (decorated_->GetUserProfileInternal(validity, profile, token, tokenValue))
+      {
+        Json::Value jsonProfile;
+
+        AuthorizationWebService::ToJson(jsonProfile, profile);
+        Orthanc::Toolbox::WriteFastJson(serializedProfile, jsonProfile);
+
+        cache_->Store(key, serializedProfile, validity);
+        
+        return true;
+      }
+    }
+
+    return false;
   }
 
   bool CachedAuthorizationService::HasUserPermissionInternal(unsigned int& validity,

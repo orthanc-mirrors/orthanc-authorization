@@ -84,13 +84,17 @@ bool HasAccessToSomeLabels(const OrthancPlugins::IAuthorizationService::UserProf
 }
 
 
-static bool CheckAuthorizedLabelsForResource(const std::string& uri,
+static bool CheckAuthorizedLabelsForResource(bool& granted,
+                                             const std::string& uri,
                                              const OrthancPlugins::AssociativeArray& getArguments,
                                              const OrthancPlugins::IAuthorizationService::UserProfile& profile)
 {
+  granted = false;
+
   if (HasAccessToAllLabels(profile))
   {
-    return true;
+    granted = true;
+    return true; // we could check labels
   }
 
   if (authorizationParser_.get() != NULL &&
@@ -101,7 +105,13 @@ static bool CheckAuthorizedLabelsForResource(const std::string& uri,
 
     if (!authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
     {
-      return false;  // Unable to parse this URI
+      return false;  // Unable to parse this URI, we could not check labels
+    }
+
+    if (authorizationParser_->IsListOfResources(uri))
+    {
+      granted = false;
+      return true; // if a user does not have access to all labels, he can not have access to a list of resources
     }
 
     // Loop over all the accessed resources to ensure access is
@@ -122,21 +132,20 @@ static bool CheckAuthorizedLabelsForResource(const std::string& uri,
         if (authorizedResourceLabels.size() == 0)
         {
           LOG(INFO) << msg << " -> not granted, no authorized labels";
-          return false;
+          return true; // we could check labels
         }
         else
         {
+          granted = true;
           LOG(INFO) << msg << " -> granted, at least one authorized labels";
-          return true;
+          return true; // we could check labels
         }
       }
     }
-
-    // Access is granted to all the resources that are 'unchecked'
-    return true;
   }
 
-  return false;  // TODO or true ???
+  // This method only checks if a resource is accessible thanks to its labels.  If we could not check it, we always return false !!
+  return false; // we could not check labels
 }
 
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
@@ -208,6 +217,8 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
+    bool hasUserRequiredPermissions = false;
+    bool hasAuthorizedLabelsForResource = false;
 
     if (permissionParser_.get() != NULL &&
       authorizationService_.get() != NULL) 
@@ -220,25 +231,18 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
         {
           std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
           
-          // TODO: how to handle anonymous user ?
-          
-          // LOG(INFO) << msg;
-          // if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
-          // {
-          //     // TODO: check labels permissions
-          //   LOG(INFO) << msg << " -> granted";
-
-          //   if (CheckAuthorizedLabelsForResource(uri, getArguments, profile))
-          //   {
-          //     return 1;
-          //   }
-          // }
-          // else
-          // {
-          //   LOG(INFO) << msg << " -> not granted";
-          // }
-          LOG(INFO) << msg << " -> not granted, TODO ????";
-          return 0;
+          LOG(INFO) << msg; 
+          if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
+          {
+            LOG(INFO) << msg << " -> granted";
+            hasUserRequiredPermissions = true;
+          }
+          else
+          {
+            LOG(INFO) << msg << " -> not granted";
+            hasUserRequiredPermissions = false;
+            // continue in order to check if there is a resource token that could grant access to the resource
+          }
         }
         else
         {
@@ -246,8 +250,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           {
             std::string msg = std::string("Testing whether user has the required permissions '") + JoinStrings(requiredPermissions) + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "' required to match '" + matchedPattern + "'";
 
-            LOG(INFO) << msg;
-            
+            // LOG(INFO) << msg;
             OrthancPlugins::IAuthorizationService::UserProfile profile;
             unsigned int validityNotUsed;
             authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
@@ -255,25 +258,41 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
             {
               LOG(INFO) << msg << " -> granted";
+              hasUserRequiredPermissions = true;
 
               // check labels permissions
-              if (CheckAuthorizedLabelsForResource(uri, getArguments, profile))
+              std::string msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
+              if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, getArguments, profile))
               {
-                return 1;
+                if (hasAuthorizedLabelsForResource)
+                {
+                  LOG(INFO) << msg << " -> granted";
+                }
+                else
+                {
+                  LOG(INFO) << msg << " -> not granted";
+                  return 0; // the labels for this resource prevents access -> stop checking now !
+                }
               }
-              // not granted, but continue and check if a resource tokens grant access
             }
             else
             {
-              LOG(INFO) << msg << " -> not granted";  // but continue and check if a resource tokens grant access
+              LOG(INFO) << msg << " -> not granted";
+              hasUserRequiredPermissions = false;
             }
           }
         }
       }
     }
 
+    // no need to check for resource token if the user has access and if the labels checking has not prevented access
+    if (hasUserRequiredPermissions)
+    {
+      return 1;
+    }
 
-    // 
+    // If we get till here, it means that we have a resource token -> check that the resource is accessible
+    ////////////////////////////////////////////////////////////////
 
     if (authorizationParser_.get() != NULL &&
         authorizationService_.get() != NULL)
@@ -325,12 +344,10 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           else
           {
             LOG(INFO) << msg << " -> granted";
+            return 1;
           }
         }
       }
-
-      // Access is granted to all the resources
-      return 1;
     }
       
     // By default, forbid access to all the resources

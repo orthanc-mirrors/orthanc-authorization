@@ -58,6 +58,7 @@
 
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
+            ["get" , "^/(patients|studies|series|instances)(|/)", "all|view"],
             ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|view"],
             ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/(studies|study|series|instances)$", "all|view"],
             ["get" , "^/instances/([a-f0-9-]+)/(tags|header)$", "all|view"],
