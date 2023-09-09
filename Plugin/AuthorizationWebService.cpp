@@ -422,7 +422,7 @@ namespace OrthancPlugins
 
       if (profile.authorizedLabels.size() == 0)
       {
-        LOG(WARNING) << "The UserProfile does not contain any authorized labels, you should add, e.g, \"authorized_labels\": [\"*\"] to grant him access to all labels !";
+        LOG(WARNING) << "The UserProfile for '" << profile.name << "' does not contain any authorized labels";
       }
 
       return true;

@@ -42,7 +42,7 @@ namespace OrthancPlugins
     }
 
     dicomWebStudies_ = boost::regex(
-      "^" + tmp + "/studies/([.0-9]+)(|/series)(|/)$");
+      "^" + tmp + "/studies/([.0-9]+)(|/series|/metadata)(|/)$");
       
     dicomWebSeries_ = boost::regex(
       "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)(|/instances|/rendered|/metadata)(|/)$");

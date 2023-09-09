@@ -148,6 +148,94 @@ static bool CheckAuthorizedLabelsForResource(bool& granted,
   return false; // we could not check labels
 }
 
+
+static void GetAuthTokens(std::vector<TokenAndValue>& authTokens, 
+                          uint32_t headersCount,
+                          const char *const *headersKeys,
+                          const char *const *headersValues,
+                          uint32_t getArgumentsCount,
+                          const char *const *getArgumentsKeys,
+                          const char *const *getArgumentsValues)  // the tokens that are set in this request
+{
+  // Extract auth tokens from headers and url get arguments
+  ////////////////////////////////////////////////////////////////
+
+  OrthancPlugins::AssociativeArray headers(headersCount, headersKeys, headersValues, false);
+  OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
+
+  for (std::set<OrthancPlugins::Token>::const_iterator token = tokens_.begin(); token != tokens_.end(); ++token)
+  {
+    std::string value;
+
+    bool hasValue = false;
+    switch (token->GetType())
+    {
+      case OrthancPlugins::TokenType_HttpHeader:
+        hasValue = headers.GetValue(value, token->GetKey());
+        break;
+
+      case OrthancPlugins::TokenType_GetArgument:
+        hasValue = getArguments.GetValue(value, token->GetKey());
+        break;
+
+      default:
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+    }
+    
+    if (hasValue)
+    {
+      authTokens.push_back(TokenAndValue(*token, value));
+    }
+  }
+}
+
+static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens,
+                                    OrthancPluginHttpMethod method,
+                                    const OrthancPlugins::AccessedResource& access)
+{
+  unsigned int validity;  // ignored
+
+  // Ignored the access levels that are unchecked
+  // (cf. "UncheckedLevels" option)
+  if (uncheckedLevels_.find(access.GetLevel()) == uncheckedLevels_.end())
+  {
+    std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access.GetLevel()) + " \"" + access.GetOrthancId() + "\" is allowed with a resource token";
+    LOG(INFO) << msg;
+
+    bool granted = false;
+
+    if (authTokens.empty())
+    {
+      granted = authorizationService_->IsGrantedToAnonymousUser(validity, method, access);
+    }
+    else
+    {
+      // Loop over all the authorization tokens in the request until finding one that is granted
+      for (size_t i = 0; i < authTokens.size(); ++i)
+      {
+        if (authorizationService_->IsGranted(validity, method, access, authTokens[i].GetToken(), authTokens[i].GetValue()))
+        {
+          granted = true;
+          break;
+        }
+      }
+    }
+
+    if (!granted)
+    {
+      LOG(INFO) << msg << " -> not granted";
+      return false;
+    }
+    else
+    {
+      LOG(INFO) << msg << " -> granted";
+      return true;
+    }
+  }
+
+  return false;
+}
+
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
                                   const char *ip,
@@ -182,38 +270,10 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       }
     }
 
-    // Extract auth tokens from headers and url get arguments
-    ////////////////////////////////////////////////////////////////
-
-    OrthancPlugins::AssociativeArray headers(headersCount, headersKeys, headersValues, false);
-    OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
-
     std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+    GetAuthTokens(authTokens, headersCount, headersKeys, headersValues, getArgumentsCount, getArgumentsKeys, getArgumentsValues);
 
-    for (std::set<OrthancPlugins::Token>::const_iterator token = tokens_.begin(); token != tokens_.end(); ++token)
-    {
-      std::string value;
-
-      bool hasValue = false;
-      switch (token->GetType())
-      {
-        case OrthancPlugins::TokenType_HttpHeader:
-          hasValue = headers.GetValue(value, token->GetKey());
-          break;
-
-        case OrthancPlugins::TokenType_GetArgument:
-          hasValue = getArguments.GetValue(value, token->GetKey());
-          break;
-
-        default:
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
-      }
-      
-      if (hasValue)
-      {
-        authTokens.push_back(TokenAndValue(*token, value));
-      }
-    }
+    OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
 
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
@@ -310,42 +370,9 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator
              access = accesses.begin(); access != accesses.end(); ++access)
       {
-        // Ignored the access levels that are unchecked
-        // (cf. "UncheckedLevels" option)
-        if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
+        if (IsResourceAccessGranted(authTokens, method, *access))
         {
-          std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access->GetLevel()) + " \"" + access->GetOrthancId() + "\" is allowed with a resource token";
-          LOG(INFO) << msg;
-
-          bool granted = false;
-
-          if (authTokens.empty())
-          {
-            granted = authorizationService_->IsGrantedToAnonymousUser(validity, method, *access);
-          }
-          else
-          {
-            // Loop over all the authorization tokens in the request until finding one that is granted
-            for (size_t i = 0; i < authTokens.size(); ++i)
-            {
-              if (authorizationService_->IsGranted(validity, method, *access, authTokens[i].GetToken(), authTokens[i].GetValue()))
-              {
-                granted = true;
-                break;
-              }
-            }
-          }
-
-          if (!granted)
-          {
-            LOG(INFO) << msg << " -> not granted";
-            return 0;
-          }
-          else
-          {
-            LOG(INFO) << msg << " -> granted";
-            return 1;
-          }
+          return 1;
         }
       }
     }
@@ -585,7 +612,39 @@ void ToolsFind(OrthancPluginRestOutput* output,
     OrthancPlugins::IAuthorizationService::UserProfile profile;
     if (GetUserProfileInternal(profile, request))
     {
-      AdjustToolsFindQueryLabels(body, profile);
+      if (!HasAccessToSomeLabels(profile))
+      {
+        // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
+        // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
+        // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
+        if (!body.isMember("Query") || !body["Query"].isMember("StudyInstanceUID"))
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
+        }
+
+        std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+        GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
+
+
+        std::string studyInstanceUID = body["Query"]["StudyInstanceUID"].asString();
+        Json::Value studyOrhtancIds;
+        if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+        }
+
+        std::set<std::string> labels;
+        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
+        if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
+        }
+        
+      }
+      else
+      {
+        AdjustToolsFindQueryLabels(body, profile);
+      }
 
       Json::Value result;
       if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
