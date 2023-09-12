@@ -588,6 +588,38 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
   }
 }
 
+bool GetStudyInstanceUIDFromQuery(std::string& studyInstanceUID, const Json::Value& body)
+{
+
+  if (!body.isMember("Query"))
+  {
+    return false;
+  }
+
+  if (body["Query"].isMember("StudyInstanceUID"))
+  {
+    studyInstanceUID = body["Query"]["StudyInstanceUID"].asString();
+  }
+  else if (body["Query"].isMember("0020,000d"))
+  {
+    studyInstanceUID = body["Query"]["0020,000d"].asString();
+  }
+  else if (body["Query"].isMember("0020,000D"))
+  {
+    studyInstanceUID = body["Query"]["0020,000D"].asString();
+  }
+  else if (body["Query"].isMember("0020000D"))
+  {
+    studyInstanceUID = body["Query"]["0020000D"].asString();
+  }
+  else
+  {
+    return false;
+  }
+
+  return true;
+}
+
 void ToolsFind(OrthancPluginRestOutput* output,
                const char* /*url*/,
                const OrthancPluginHttpRequest* request)
@@ -614,37 +646,24 @@ void ToolsFind(OrthancPluginRestOutput* output,
     {
       if (!HasAccessToSomeLabels(profile))
       {
+        std::string studyInstanceUID;
+
         // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
         // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
         // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
-        if (!body.isMember("Query") || !(body["Query"].isMember("StudyInstanceUID") || body["Query"].isMember("0020,000d") || body["Query"].isMember("0020,000D")))
+        if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
         }
 
-        std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
-        GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
-
-
-        std::string studyInstanceUID;
-        if (body["Query"].isMember("StudyInstanceUID"))
-        {
-          studyInstanceUID = body["Query"]["StudyInstanceUID"].asString();
-        }
-        else if (body["Query"].isMember("0020,000d"))
-        {
-          studyInstanceUID = body["Query"]["0020,000d"].asString();
-        }
-        else if (body["Query"].isMember("0020,000D"))
-        {
-          studyInstanceUID = body["Query"]["0020,000D"].asString();
-        }
-        
         Json::Value studyOrhtancIds;
         if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
         }
+
+        std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+        GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
 
         std::set<std::string> labels;
         OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
