@@ -1162,7 +1162,7 @@ extern "C"
             uncheckedResources_.insert("/");                                      // for the redirect to /ui/app/
             uncheckedResources_.insert("/ui/api/pre-login-configuration");        // for the UI to know, i.e. if Keycloak is enabled or not
             uncheckedResources_.insert("/ui/api/configuration");
-            uncheckedResources_.insert("/auth/user-profile");
+            uncheckedResources_.insert("/auth/user/profile");
 
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));  // for basic-auth
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "token"));          // for keycloak
