@@ -24,6 +24,12 @@ Usage details are available as part of the Orthanc Book:
 http://book.orthanc-server.com/plugins/authorization.html
 
 
+Integration tests
+-----------------
+
+Integration tests are available in the https://hg.orthanc-server.com/orthanc-tests/ repo
+in the folder NewTests/Authorization.
+
 API
 ---
 

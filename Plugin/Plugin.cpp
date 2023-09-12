@@ -642,53 +642,46 @@ void ToolsFind(OrthancPluginRestOutput* output,
 
     // If the logged in user has restrictions on the labels he can access, modify the tools/find payload before reposting it to Orthanc
     OrthancPlugins::IAuthorizationService::UserProfile profile;
-    if (GetUserProfileInternal(profile, request))
+    if (GetUserProfileInternal(profile, request) && HasAccessToSomeLabels(profile))
     {
-      if (!HasAccessToSomeLabels(profile))
+      AdjustToolsFindQueryLabels(body, profile);
+    }
+    else // anonymous user profile or resource token
+    {
+      std::string studyInstanceUID;
+
+      // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
+      // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
+      // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
+      if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
       {
-        std::string studyInstanceUID;
-
-        // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
-        // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
-        // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
-        if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
-        {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
-        }
-
-        Json::Value studyOrhtancIds;
-        if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
-        {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
-        }
-
-        std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
-        GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
-
-        std::set<std::string> labels;
-        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
-        if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
-        {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
-        }
-        
-      }
-      else
-      {
-        AdjustToolsFindQueryLabels(body, profile);
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
       }
 
-      Json::Value result;
-      if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
+      Json::Value studyOrhtancIds;
+      if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
       {
-        OrthancPlugins::AnswerJson(result, output);
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+      }
+
+      std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+      GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
+
+      std::set<std::string> labels;
+      OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
+      if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
       }
 
     }
-    else
+
+    Json::Value result;
+    if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, access to tools/find is forbidden.");
+      OrthancPlugins::AnswerJson(result, output);
     }
+
   }
 }
 
