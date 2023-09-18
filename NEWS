@@ -1,3 +1,16 @@
+Pending changes in the mainline
+===============================
+
+* Now handling permissions based on labels from a user profile:
+  - filter the results from tools/find to grant access only to the 
+    authorized_labels from the user profile
+  - grants access to resources (studies) based on their labels and
+    the authorized_labels from the user profile.
+  - check the https://github.com/orthanc-team/orthanc-auth-service
+    sample project for more details
+* Added integration tests in the https://hg.orthanc-server.com/orthanc-tests/
+  repository.
+
 2023-06-21 - v 0.5.3
 ====================
 

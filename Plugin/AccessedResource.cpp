@@ -84,16 +84,9 @@ namespace OrthancPlugins
     }
   }
 
-    const std::set<std::string>& AccessedResource::GetLabels() const
-    {
-    if (level_ == AccessLevel_System)
-    {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadSequenceOfCalls);        
-    }
-    else
-    {
-      return labels_;
-    }
+  const std::set<std::string>& AccessedResource::GetLabels() const
+  {
+    return labels_;
   }
 
 }
