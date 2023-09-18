@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+23-09-18 - v 0.6.0
+==================
 
 * Now handling permissions based on labels from a user profile:
   - filter the results from tools/find to grant access only to the 
