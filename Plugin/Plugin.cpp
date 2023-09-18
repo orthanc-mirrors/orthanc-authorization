@@ -49,6 +49,17 @@ static std::string JoinStrings(const std::set<std::string>& values)
   return out;
 }
 
+
+// For Orthanc prior to 1.12.2, we can not use the Forbidden error code and report the error ourselves
+static void SendForbiddenError(const char* message, OrthancPluginRestOutput* output)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  OrthancPluginSendHttpStatus(context, output, 403, message, strlen(message));
+}
+
+
+
 class TokenAndValue
 {
 private:
@@ -626,63 +637,80 @@ void ToolsFind(OrthancPluginRestOutput* output,
 {
   OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
 
-  if (request->method != OrthancPluginHttpMethod_Post)
+  try
   {
-    OrthancPluginSendMethodNotAllowed(context, output, "POST");
+    if (request->method != OrthancPluginHttpMethod_Post)
+    {
+      OrthancPluginSendMethodNotAllowed(context, output, "POST");
+    }
+    else
+    {
+      // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
+
+      Json::Value body;
+      if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+      }
+
+      // If the logged in user has restrictions on the labels he can access, modify the tools/find payload before reposting it to Orthanc
+      OrthancPlugins::IAuthorizationService::UserProfile profile;
+      if (GetUserProfileInternal(profile, request) && HasAccessToSomeLabels(profile))
+      {
+        AdjustToolsFindQueryLabels(body, profile);
+      }
+      else // anonymous user profile or resource token
+      {
+        std::string studyInstanceUID;
+
+        // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
+        // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
+        // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
+        if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
+        }
+
+        Json::Value studyOrhtancIds;
+        if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+        }
+
+        std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+        GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
+
+        std::set<std::string> labels;
+        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
+        if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
+        }
+
+      }
+
+      Json::Value result;
+      if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
+      {
+        OrthancPlugins::AnswerJson(result, output);
+      }
+
+    }
+
   }
-  else
+  catch(const Orthanc::OrthancException& e)
   {
-    // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
-
-    Json::Value body;
-    if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+    // this error is not yet supported in Orthanc 1.12.1
+    if (e.GetErrorCode() == Orthanc::ErrorCode_ForbiddenAccess && !OrthancPlugins::CheckMinimalOrthancVersion(1, 12, 2))
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+      SendForbiddenError(e.GetDetails(), output);
     }
-
-    // If the logged in user has restrictions on the labels he can access, modify the tools/find payload before reposting it to Orthanc
-    OrthancPlugins::IAuthorizationService::UserProfile profile;
-    if (GetUserProfileInternal(profile, request) && HasAccessToSomeLabels(profile))
+    else
     {
-      AdjustToolsFindQueryLabels(body, profile);
+      throw e;
     }
-    else // anonymous user profile or resource token
-    {
-      std::string studyInstanceUID;
-
-      // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
-      // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
-      // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
-      if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
-      {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
-      }
-
-      Json::Value studyOrhtancIds;
-      if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
-      {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
-      }
-
-      std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
-      GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
-
-      std::set<std::string> labels;
-      OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
-      if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
-      {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
-      }
-
-    }
-
-    Json::Value result;
-    if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
-    {
-      OrthancPlugins::AnswerJson(result, output);
-    }
-
   }
+
 }
 
 void ToolsLabels(OrthancPluginRestOutput* output,
@@ -691,45 +719,60 @@ void ToolsLabels(OrthancPluginRestOutput* output,
 {
   OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
 
-  if (request->method != OrthancPluginHttpMethod_Get)
+  try
   {
-    OrthancPluginSendMethodNotAllowed(context, output, "GET");
-  }
-  else
-  {
-    // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
-
-    // If the logged in user has restrictions on the labels he can access, modify the tools/labels response before answering
-    OrthancPlugins::IAuthorizationService::UserProfile profile;
-    if (GetUserProfileInternal(profile, request))
+    if (request->method != OrthancPluginHttpMethod_Get)
     {
-      if (!HasAccessToSomeLabels(profile))
-      {
-        Json::Value emptyLabels;
-        OrthancPlugins::AnswerJson(emptyLabels, output);
-        return;
-      }
-
-      Json::Value jsonLabels;
-      if (OrthancPlugins::RestApiGet(jsonLabels, "/tools/labels", false))
-      {
-        std::set<std::string> allLabels;
-        Orthanc::SerializationToolbox::ReadSetOfStrings(allLabels, jsonLabels);
-
-        if (!HasAccessToAllLabels(profile))
-        {
-          std::set<std::string> authorizedLabels;
-
-          Orthanc::Toolbox::GetIntersection(authorizedLabels, allLabels, profile.authorizedLabels);
-          Orthanc::SerializationToolbox::WriteSetOfStrings(jsonLabels, authorizedLabels);
-        }
-        OrthancPlugins::AnswerJson(jsonLabels, output);
-      }
-
+      OrthancPluginSendMethodNotAllowed(context, output, "GET");
     }
     else
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, access to tools/labels is forbidden.");
+      // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
+
+      // If the logged in user has restrictions on the labels he can access, modify the tools/labels response before answering
+      OrthancPlugins::IAuthorizationService::UserProfile profile;
+      if (GetUserProfileInternal(profile, request))
+      {
+        if (!HasAccessToSomeLabels(profile))
+        {
+          Json::Value emptyLabels;
+          OrthancPlugins::AnswerJson(emptyLabels, output);
+          return;
+        }
+
+        Json::Value jsonLabels;
+        if (OrthancPlugins::RestApiGet(jsonLabels, "/tools/labels", false))
+        {
+          std::set<std::string> allLabels;
+          Orthanc::SerializationToolbox::ReadSetOfStrings(allLabels, jsonLabels);
+
+          if (!HasAccessToAllLabels(profile))
+          {
+            std::set<std::string> authorizedLabels;
+
+            Orthanc::Toolbox::GetIntersection(authorizedLabels, allLabels, profile.authorizedLabels);
+            Orthanc::SerializationToolbox::WriteSetOfStrings(jsonLabels, authorizedLabels);
+          }
+          OrthancPlugins::AnswerJson(jsonLabels, output);
+        }
+
+      }
+      else
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, access to tools/labels is forbidden.");
+      }
+    }
+  }
+  catch(const Orthanc::OrthancException& e)
+  {
+    // this error is not yet supported in Orthanc 1.12.1
+    if (e.GetErrorCode() == Orthanc::ErrorCode_ForbiddenAccess && !OrthancPlugins::CheckMinimalOrthancVersion(1, 12, 2))
+    {
+      SendForbiddenError(e.GetDetails(), output);
+    }
+    else
+    {
+      throw e;
     }
   }
 }
