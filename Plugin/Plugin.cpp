@@ -1305,16 +1305,14 @@ extern "C"
         if (!urlUserProfile.empty())
         {
           OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user/profile", true);
+          OrthancPlugins::RegisterRestCallback<ToolsFind>("/tools/find", true);
+          OrthancPlugins::RegisterRestCallback<ToolsLabels>("/tools/labels", true);
         }
 
         if (!urlTokenCreationBase.empty())
         {
           OrthancPlugins::RegisterRestCallback<CreateToken>("/auth/tokens/(.*)", true);
         }
-
-        OrthancPlugins::RegisterRestCallback<ToolsFind>("/tools/find", true);
-        OrthancPlugins::RegisterRestCallback<ToolsLabels>("/tools/labels", true);
-
 
         if (authorizationParser_.get() != NULL || permissionParser_.get() != NULL)
         {

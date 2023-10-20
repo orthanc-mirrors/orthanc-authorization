@@ -1,3 +1,9 @@
+Pending changes in the mainline
+===============================
+
+* now overriding /tools/find and /tools/labels only if the auth-service
+  is providing user profiles ("WebServiceUserProfileUrl" has been configured).
+
 23-09-18 - v 0.6.0
 ==================
 
