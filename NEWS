@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+23-09-18 - v 0.6.0
+==================
 
 * updated default "Permissions" configuration to take the "/merge" routes 
   into account.
