@@ -181,6 +181,9 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "hg" OR
       elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "b2e08d83e21d")
         # WSI 1.1 (framework pre-1.10.0), to remove "-std=c++11"
         set(ORTHANC_FRAMEWORK_MD5 "2eaa073cbb4b44ffba199ad93393b2b1")
+      elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "daf4807631c5")
+        # DICOMweb 1.15 (framework pre-1.12.2)
+        set(ORTHANC_FRAMEWORK_MD5 "c644aff2817306b3207c98c92e43f35f")
       endif()
     endif()
   endif()
@@ -268,7 +271,7 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "hg")
   else()
     message("Forking the Orthanc source repository using Mercurial")
     execute_process(
-      COMMAND ${ORTHANC_FRAMEWORK_HG} clone "https://hg.orthanc-server.com/orthanc/"
+      COMMAND ${ORTHANC_FRAMEWORK_HG} clone "https://orthanc.uclouvain.be/hg/orthanc/"
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       RESULT_VARIABLE Failure
       )    

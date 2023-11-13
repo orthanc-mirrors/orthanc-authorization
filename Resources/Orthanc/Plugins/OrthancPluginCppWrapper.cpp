@@ -2,8 +2,8 @@
  * Orthanc - A Lightweight, RESTful DICOM Store
  * Copyright (C) 2012-2016 Sebastien Jodogne, Medical Physics
  * Department, University Hospital of Liege, Belgium
- * Copyright (C) 2017-2022 Osimis S.A., Belgium
- * Copyright (C) 2021-2022 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
+ * Copyright (C) 2017-2023 Osimis S.A., Belgium
+ * Copyright (C) 2021-2023 Sebastien Jodogne, ICTEAM UCLouvain, Belgium
  *
  * This program is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -79,6 +79,10 @@ namespace OrthancPlugins
     }
   }
 
+  void ResetGlobalContext()
+  {
+    globalContext_ = NULL;
+  }
 
   bool HasGlobalContext()
   {
@@ -253,14 +257,15 @@ namespace OrthancPlugins
   // helper class to convert std::map of headers to the plugin SDK C structure
   class PluginHttpHeaders
   {
+  private:
     std::vector<const char*> headersKeys_;
     std::vector<const char*> headersValues_;
-  public:
 
-    PluginHttpHeaders(const std::map<std::string, std::string>& httpHeaders)
+  public:
+    explicit PluginHttpHeaders(const std::map<std::string, std::string>& httpHeaders)
     {
       for (std::map<std::string, std::string>::const_iterator
-           it = httpHeaders.begin(); it != httpHeaders.end(); it++)
+           it = httpHeaders.begin(); it != httpHeaders.end(); ++it)
       {
         headersKeys_.push_back(it->first.c_str());
         headersValues_.push_back(it->second.c_str());
@@ -1457,6 +1462,27 @@ namespace OrthancPlugins
   }
 
 
+  bool RestApiGet(Json::Value& result,
+                  const std::string& uri,
+                  const std::map<std::string, std::string>& httpHeaders,
+                  bool applyPlugins)
+  {
+    MemoryBuffer answer;
+
+    if (!answer.RestApiGet(uri, httpHeaders, applyPlugins))
+    {
+      return false;
+    }
+    else
+    {
+      if (!answer.IsEmpty())
+      {
+        answer.ToJson(result);
+      }
+      return true;
+    }
+  }
+
 
   bool RestApiGet(Json::Value& result,
                   const std::string& uri,
@@ -1648,15 +1674,16 @@ namespace OrthancPlugins
       return true;
     }
 
-    // Parse the version
-    int aa, bb, cc;
-    if (
 #ifdef _MSC_VER
-      sscanf_s
+#define ORTHANC_SCANF sscanf_s
 #else
-      sscanf
+#define ORTHANC_SCANF sscanf
 #endif
-      (version, "%4d.%4d.%4d", &aa, &bb, &cc) != 3 ||
+
+    // Parse the version
+    int aa, bb, cc = 0;
+    if ((ORTHANC_SCANF(version, "%4d.%4d.%4d", &aa, &bb, &cc) != 3 &&
+         ORTHANC_SCANF(version, "%4d.%4d", &aa, &bb) != 2) ||
       aa < 0 ||
       bb < 0 ||
       cc < 0)
@@ -3715,6 +3742,27 @@ namespace OrthancPlugins
   {
     OrthancPluginDicomInstance* instance = OrthancPluginTranscodeDicomInstance(
       GetGlobalContext(), buffer, size, transferSyntax.c_str());
+
+    if (instance == NULL)
+    {
+      ORTHANC_PLUGINS_THROW_EXCEPTION(Plugin);
+    }
+    else
+    {
+      boost::movelib::unique_ptr<DicomInstance> result(new DicomInstance(instance));
+      result->toFree_ = true;
+      return result.release();
+    }
+  }
+#endif
+
+
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 12, 1)
+  DicomInstance* DicomInstance::Load(const std::string& instanceId,
+                                     OrthancPluginLoadDicomInstanceMode mode)
+  {
+    OrthancPluginDicomInstance* instance = OrthancPluginLoadDicomInstance(
+      GetGlobalContext(), instanceId.c_str(), mode);
 
     if (instance == NULL)
     {
