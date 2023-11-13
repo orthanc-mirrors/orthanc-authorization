@@ -20,6 +20,7 @@
 
 #include <OrthancException.h>
 #include <HttpServer/HttpToolbox.h>
+#include <Logging.h>
 
 namespace OrthancPlugins
 {
@@ -170,6 +171,30 @@ namespace OrthancPlugins
       if (patientId.empty())
       {
         patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "PatientID", "");
+      }
+
+      if (!sopInstanceUid.empty() && sopInstanceUid.find('*') != std::string::npos)
+      {
+        LOG(WARNING) << "Authorization plugin: unable to handle wildcards in SOPInstanceUID";
+        sopInstanceUid = "";  // remove the constrain, it will be considered as a 'system' access
+      }
+
+      if (!seriesInstanceUid.empty() && seriesInstanceUid.find('*') != std::string::npos)
+      {
+        LOG(WARNING) << "Authorization plugin: unable to handle wildcards in SeriesInstanceUID";
+        seriesInstanceUid = "";  // remove the constrain, it will be considered as a 'system' access
+      }
+
+      if (!studyInstanceUid.empty() && studyInstanceUid.find('*') != std::string::npos)
+      {
+        LOG(WARNING) << "Authorization plugin: unable to handle wildcards in StudyInstanceUID";
+        studyInstanceUid = "";  // remove the constrain, it will be considered as a 'system' access
+      }
+
+      if (!patientId.empty() && patientId.find('*') != std::string::npos)
+      {
+        LOG(WARNING) << "Authorization plugin: unable to handle wildcards in PatientID";
+        patientId = "";  // remove the constrain, it will be considered as a 'system' access
       }
 
       if (!sopInstanceUid.empty() && !seriesInstanceUid.empty() && !studyInstanceUid.empty())
