@@ -89,7 +89,7 @@
             ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
 
             // modifications/anonymization
-            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/modify(.*)$", "all|modify"],
+            ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/(modify|merge)(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
 
             // labels
