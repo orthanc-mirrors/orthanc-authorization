@@ -16,7 +16,7 @@
     the authorized_labels from the user profile.
   - check the https://github.com/orthanc-team/orthanc-auth-service
     sample project for more details
-* Added integration tests in the https://hg.orthanc-server.com/orthanc-tests/
+* Added integration tests in the https://orthanc.uclouvain.be/hg/orthanc-tests/
   repository.
 
 2023-06-21 - v 0.5.3
