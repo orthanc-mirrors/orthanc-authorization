@@ -33,7 +33,8 @@ namespace OrthancPlugins
     osimisViewerSeries_("^/osimis-viewer/series/([a-f0-9-]+)(|/.*)$"),
     osimisViewerImages_("^/osimis-viewer/(images|custom-command)/([a-f0-9-]+)(|/.*)$"),
     osimisViewerStudies_("^/osimis-viewer/studies/([a-f0-9-]+)(|/.*)$"),
-    listOfResourcesPattern_("^/(patients|studies|series|instances)(|/)$")
+    listOfResourcesPattern_("^/(patients|studies|series|instances)(|/)$"),
+    createBulkPattern_("^/tools/(create-archive|create-media|create-media-extended)(|/)$")
   {
     std::string tmp = dicomWebRoot;
     while (!tmp.empty() &&
@@ -143,6 +144,19 @@ namespace OrthancPlugins
     else if (boost::regex_match(uri, what, osimisViewerImages_))
     {
       AddOrthancInstance(target, what[2]);
+      return true;
+    }
+    else if (boost::regex_match(uri, what, createBulkPattern_))
+    {
+      std::string resourcesIdsString = Orthanc::HttpToolbox::GetArgument(getArguments, "resources", "");
+      std::set<std::string> resourcesIds;
+      Orthanc::Toolbox::SplitString(resourcesIds, resourcesIdsString, ',');
+
+      for (std::set<std::string>::const_iterator it = resourcesIds.begin(); it != resourcesIds.end(); ++it)
+      {
+        AddOrthancUnknownResource(target, *it);
+      }
+      
       return true;
     }
     else if (boost::regex_match(uri, what, dicomWebQidoRsFind_))

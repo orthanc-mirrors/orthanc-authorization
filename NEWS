@@ -1,10 +1,17 @@
+Pending changes in the mainline
+===============================
+
+* Now handling new GET /tools/create-archive and sibling routes.
+
+
 23-11-13 - v 0.6.1
 ==================
 
-* updated default "Permissions" configuration to take the "/merge" routes 
+* Updated default "Permissions" configuration to take the "/merge" routes 
   into account.
-* now overriding /tools/find and /tools/labels only if the auth-service
+* Now overriding /tools/find and /tools/labels only if the auth-service
   is providing user profiles ("WebServiceUserProfileUrl" has been configured).
+
 
 23-09-18 - v 0.6.0
 ==================
@@ -19,6 +26,7 @@
 * Added integration tests in the https://orthanc.uclouvain.be/hg/orthanc-tests/
   repository.
 
+
 2023-06-21 - v 0.5.3
 ====================
 
@@ -26,11 +34,13 @@
 * new default permissions for labels
 * Fix parsing of dicom-web/studies/../series/../instances/../bulk/.. routes
 
+
 2023-05-15 - v 0.5.2
 ====================
 
 * Fix standard configuration "orthanc-explorer-2": consider the "token"
   Get arguments
+
 
 2023-04-15 - v 0.5.1
 ====================

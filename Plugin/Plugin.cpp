@@ -378,13 +378,25 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 
       // Loop over all the accessed resources to ensure access is
       // granted to each of them
+      int checkedResources = 0;
+      int grantedResources = 0;
+
       for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator
              access = accesses.begin(); access != accesses.end(); ++access)
       {
-        if (IsResourceAccessGranted(authTokens, method, *access))
+        if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
         {
-          return 1;
+          checkedResources++;
+          if (IsResourceAccessGranted(authTokens, method, *access))
+          {
+            grantedResources++;
+          }  
         }
+      }
+
+      if (checkedResources > 0 && grantedResources == checkedResources)
+      {
+        return 1;
       }
     }
       
