@@ -1,11 +1,11 @@
-Pending changes in the mainline
-===============================
+2023-11-13 - v 0.6.2
+====================
 
 * Now handling new GET /tools/create-archive and sibling routes.
 
 
-23-11-13 - v 0.6.1
-==================
+2023-11-13 - v 0.6.1
+====================
 
 * Updated default "Permissions" configuration to take the "/merge" routes 
   into account.
@@ -13,8 +13,8 @@ Pending changes in the mainline
   is providing user profiles ("WebServiceUserProfileUrl" has been configured).
 
 
-23-09-18 - v 0.6.0
-==================
+2023-09-18 - v 0.6.0
+====================
 
 * Now handling permissions based on labels from a user profile:
   - filter the results from tools/find to grant access only to the 
