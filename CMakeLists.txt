@@ -25,9 +25,8 @@ if (ORTHANC_PLUGIN_VERSION STREQUAL "mainline")
   set(ORTHANC_FRAMEWORK_VERSION "mainline")
   set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "hg")
 else()
-  # TODO: switch to 1.12.2 once available
-  set(ORTHANC_FRAMEWORK_VERSION "mainline")
-  set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "hg")
+  set(ORTHANC_FRAMEWORK_VERSION "1.12.2")
+  set(ORTHANC_FRAMEWORK_DEFAULT_SOURCE "web")
 endif()
 
 # Parameters of the build
