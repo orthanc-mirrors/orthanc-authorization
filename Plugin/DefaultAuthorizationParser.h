@@ -42,6 +42,7 @@ namespace OrthancPlugins
     boost::regex osimisViewerStudies_;
 
     boost::regex listOfResourcesPattern_;
+    boost::regex createBulkPattern_;
 
   public:
     DefaultAuthorizationParser(ICacheFactory& factory,

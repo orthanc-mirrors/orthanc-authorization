@@ -53,6 +53,9 @@ namespace OrthancPlugins
     void AddOrthancPatient(AccessedResources& target,
                            const std::string& orthancId);
 
+    Orthanc::ResourceType AddOrthancUnknownResource(AccessedResources& target,
+                                                    const std::string& orthancId);
+
     void AddDicomPatient(AccessedResources& target,
                          const std::string& patientId);
 
