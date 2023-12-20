@@ -1,4 +1,4 @@
-2023-11-13 - v 0.6.2
+2023-12-19 - v 0.6.2
 ====================
 
 * Now handling new GET /tools/create-archive and sibling routes.
