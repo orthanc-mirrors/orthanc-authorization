@@ -158,6 +158,8 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "hg" OR
         set(ORTHANC_FRAMEWORK_MD5 "d32a0cde03b6eb603d8dd2b33d38bf1b")
       elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "1.12.1")
         set(ORTHANC_FRAMEWORK_MD5 "8a435140efc8ff4a01d8242f092f21de")
+      elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "1.12.2")
+        set(ORTHANC_FRAMEWORK_MD5 "d2476b9e796e339ac320b5333489bdb3")
 
       # Below this point are development snapshots that were used to
       # release some plugin, before an official release of the Orthanc
@@ -189,7 +191,7 @@ if (ORTHANC_FRAMEWORK_SOURCE STREQUAL "hg" OR
       elseif (ORTHANC_FRAMEWORK_VERSION STREQUAL "daf4807631c5")
         # DICOMweb 1.15 (framework pre-1.12.2)
         set(ORTHANC_FRAMEWORK_PRE_RELEASE ON)
-        set(ORTHANC_FRAMEWORK_MD5 "c644aff2817306b3207c98c92e43f35f")
+        set(ORTHANC_FRAMEWORK_MD5 "ebe8bdf388319f1c9536b2b680451848")
       endif()
     endif()
   endif()
