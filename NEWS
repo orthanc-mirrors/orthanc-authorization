@@ -1,3 +1,9 @@
+Pending changes in the mainline
+===============================
+
+* Added 2 new default permissions for dicom-web (get and post on dicom-web/studies).
+
+
 2023-12-19 - v 0.6.2
 ====================
 

@@ -172,6 +172,22 @@ TEST(DefaultAuthorizationParser, Parse)
   parser.Parse(accesses, "/system", noGetArguments.GetMap());
   ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/system"));
 
+  accesses.clear();
+  parser.Parse(accesses, "/instances", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/instances"));
+
+  accesses.clear();
+  parser.Parse(accesses, "/series", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/series"));
+
+  accesses.clear();
+  parser.Parse(accesses, "/studies", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/studies"));
+
+  accesses.clear();
+  parser.Parse(accesses, "/patients", noGetArguments.GetMap());
+  ASSERT_TRUE(IsAccessing(accesses, AccessLevel_System, "/patients"));
+
 
   ///////////////////////// dicom-web
   accesses.clear();

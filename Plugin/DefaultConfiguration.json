@@ -74,6 +74,7 @@
 
             // uploads
             ["post", "^/instances$", "all|upload"],
+            ["post" , "^/DICOM_WEB_ROOT/studies$", "all|upload"],
 
             // monitor jobs you have created
             ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],
@@ -87,7 +88,8 @@
             ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
-
+            ["get" , "^/DICOM_WEB_ROOT/studies$", "all|view"],
+            
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/(modify|merge)(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
