@@ -88,8 +88,14 @@
             ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
-            ["get" , "^/DICOM_WEB_ROOT/studies$", "all|view"],
-            
+
+            // DICOMWeb QIDO-RS            
+            ["get" , "^/DICOM_WEB_ROOT/(studies|series|instances)(|/)$", "all|view"],
+            // DICOMWeb WADO-RS (a user must have access to the route + have an authorized label)
+            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)(|/series|/metadata)(|/)$", "all|view"],
+            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)/series/([.0-9]+)(|/instances|/rendered|/metadata)(|/)$", "all|view"],
+            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*|/rendered|/metadata|/bulk/.*)(|/)$", "all|view"],
+
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/(modify|merge)(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
