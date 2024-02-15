@@ -59,11 +59,12 @@
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
             ["get" , "^/(patients|studies|series|instances)(|/)", "all|view"],
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)$", "all|view"],
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/(studies|study|series|instances)$", "all|view"],
-            ["get" , "^/instances/([a-f0-9-]+)/(tags|header)$", "all|view"],
             ["get" , "^/statistics$", "all|view"],
             ["get" , "^/changes$", "all|view"],
+
+            // single resources patterns (SINGLE_RESOURCE_PATTERNS is an alias for all single resource patterns defined in https://orthanc.uclouvain.be/hg/orthanc-authorization/file/tip/Plugin/DefaultAuthorizationParser.cpp)
+            // (a user must have access to the route + have an authorized label to access the resource)
+            ["get" , "SINGLE_RESOURCE_PATTERNS", "all|view"],
 
             // create links to open viewer or download resources
             ["put", "^/auth/tokens/(viewer-instant-link|meddream-instant-link)$", "all|view"],
@@ -91,10 +92,6 @@
 
             // DICOMWeb QIDO-RS            
             ["get" , "^/DICOM_WEB_ROOT/(studies|series|instances)(|/)$", "all|view"],
-            // DICOMWeb WADO-RS (a user must have access to the route + have an authorized label)
-            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)(|/series|/metadata)(|/)$", "all|view"],
-            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)/series/([.0-9]+)(|/instances|/rendered|/metadata)(|/)$", "all|view"],
-            ["get" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)/series/([.0-9]+)/instances/([.0-9]+)(|/|/frames/.*|/rendered|/metadata|/bulk/.*)(|/)$", "all|view"],
 
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/(modify|merge)(.*)$", "all|modify"],
@@ -102,7 +99,6 @@
 
             // labels
             ["get", "^/tools/labels$", "all|view|edit-labels"],
-            ["get" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels$", "all|view"],
             ["put" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels/(.*)$", "all|edit-labels"],
             ["delete" , "^/(patients|studies|series|instances)/([a-f0-9-]+)/labels/(.*)$", "all|edit-labels"],
 

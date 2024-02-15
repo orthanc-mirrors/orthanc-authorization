@@ -28,7 +28,7 @@ namespace OrthancPlugins
   class DefaultAuthorizationParser : public AuthorizationParserBase
   { 
   private:
-    boost::mutex mutex_; 
+    mutable boost::mutex mutex_; 
     boost::regex resourcesPattern_;
     boost::regex seriesPattern_;
     boost::regex instancesPattern_;
@@ -52,6 +52,8 @@ namespace OrthancPlugins
                        const std::string& uri,
                        const std::map<std::string, std::string>& getArguments);
 
-    virtual bool IsListOfResources(const std::string& uri);
+    virtual bool IsListOfResources(const std::string& uri) const;
+
+    virtual void GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const;
   };
 }

@@ -32,6 +32,8 @@
 
 
 // Configuration of the authorization plugin
+static bool resourceTokensEnabled_ = false;
+static bool userTokensEnabled_ = false;
 static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::unique_ptr<OrthancPlugins::PermissionParser> permissionParser_;
@@ -121,8 +123,8 @@ static bool CheckAuthorizedLabelsForResource(bool& granted,
 
     if (authorizationParser_->IsListOfResources(uri))
     {
-      granted = false;
-      return true; // if a user does not have access to all labels, he can not have access to a list of resources
+      granted = false;  // if a user does not have access to all labels, he can not have access to a list of resources
+      return true; 
     }
 
     // Loop over all the accessed resources to ensure access is
@@ -365,7 +367,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     // If we get till here, it means that we have a resource token -> check that the resource is accessible
     ////////////////////////////////////////////////////////////////
 
-    if (authorizationParser_.get() != NULL &&
+    if (resourceTokensEnabled_ &&
         authorizationService_.get() != NULL)
     {
       // Parse the resources that are accessed through this URI
@@ -1137,20 +1139,23 @@ extern "C"
           pluginConfiguration.LookupStringValue(urlUserProfile, WEB_SERVICE_USER_PROFILE);
         }
 
+        authorizationParser_.reset(new OrthancPlugins::DefaultAuthorizationParser(factory, dicomWebRoot));
+
         if (!urlTokenValidation.empty())
         {
-          LOG(WARNING) << "Authorization plugin: url defined for Token Validation: " << urlTokenValidation;
-          authorizationParser_.reset
-            (new OrthancPlugins::DefaultAuthorizationParser(factory, dicomWebRoot));
+          LOG(WARNING) << "Authorization plugin: url defined for Token Validation: " << urlTokenValidation << ", resource tokens validation is enabled";
+          resourceTokensEnabled_ = true;
         }
         else
         {
-          LOG(WARNING) << "Authorization plugin: no url defined for Token Validation";
+          LOG(WARNING) << "Authorization plugin: no url defined for Token Validation, resource tokens validation is disabled";
+          resourceTokensEnabled_ = false;
         }
 
         if (!urlUserProfile.empty())
         {
-          LOG(WARNING) << "Authorization plugin: url defined for User Profile: " << urlUserProfile;
+          LOG(WARNING) << "Authorization plugin: url defined for User Profile: " << urlUserProfile << ", user tokens validation is enabled";
+          userTokensEnabled_ = true;
           
           static const char* PERMISSIONS = "Permissions";        
           if (!pluginConfiguration.GetJson().isMember(PERMISSIONS))
@@ -1161,11 +1166,12 @@ extern "C"
           permissionParser_.reset
             (new OrthancPlugins::PermissionParser(dicomWebRoot, oe2Root));
 
-          permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS]);
+          permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS], authorizationParser_.get());
         }
         else
         {
-          LOG(WARNING) << "Authorization plugin: no url defined for User Profile";
+          LOG(WARNING) << "Authorization plugin: no url defined for User Profile" << ", user tokens validation is disabled";
+          userTokensEnabled_ = false;
         }
 
         if (!urlTokenCreationBase.empty())
@@ -1177,7 +1183,7 @@ extern "C"
           LOG(WARNING) << "Authorization plugin: no base url defined for Token Creation";
         }
 
-        if (authorizationParser_.get() == NULL && permissionParser_.get() == NULL)
+        if (!resourceTokensEnabled_ && permissionParser_.get() == NULL)
         {
           if (hasBasicAuthEnabled)
           {
@@ -1326,7 +1332,7 @@ extern "C"
           OrthancPlugins::RegisterRestCallback<CreateToken>("/auth/tokens/(.*)", true);
         }
 
-        if (authorizationParser_.get() != NULL || permissionParser_.get() != NULL)
+        if (resourceTokensEnabled_ || userTokensEnabled_)
         {
           if (hasBasicAuthEnabled)
           {

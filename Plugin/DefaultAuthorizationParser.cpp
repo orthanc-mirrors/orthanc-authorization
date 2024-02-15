@@ -57,7 +57,20 @@ namespace OrthancPlugins
       "^" + tmp + "/(studies|series|instances)(|/)$");
   }
 
-  bool DefaultAuthorizationParser::IsListOfResources(const std::string& uri)
+  void DefaultAuthorizationParser::GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const
+  {
+    patterns.push_back(resourcesPattern_);
+    patterns.push_back(seriesPattern_);
+    patterns.push_back(instancesPattern_);
+    patterns.push_back(osimisViewerSeries_);
+    patterns.push_back(osimisViewerImages_);
+    patterns.push_back(osimisViewerStudies_);
+    patterns.push_back(dicomWebStudies_);
+    patterns.push_back(dicomWebSeries_);
+    patterns.push_back(dicomWebInstances_);
+  }
+
+  bool DefaultAuthorizationParser::IsListOfResources(const std::string& uri) const
   {
     if (boost::regex_match(uri, listOfResourcesPattern_))
     {

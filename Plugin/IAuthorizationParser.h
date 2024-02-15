@@ -21,8 +21,10 @@
 #include "AccessedResource.h"
 
 #include <boost/noncopyable.hpp>
+#include <boost/regex.hpp>
 #include <list>
 #include <map>
+#include <vector>
 
 namespace OrthancPlugins
 {
@@ -43,6 +45,8 @@ namespace OrthancPlugins
                        const std::string& uri,
                        const std::map<std::string, std::string>& getArguments) = 0;
 
-    virtual bool IsListOfResources(const std::string& uri) = 0;
+    virtual bool IsListOfResources(const std::string& uri) const = 0;
+
+    virtual void GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const = 0;
   };
 }

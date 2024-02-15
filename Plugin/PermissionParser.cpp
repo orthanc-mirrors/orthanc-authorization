@@ -70,7 +70,7 @@ namespace OrthancPlugins
   {
   }
 
-  void PermissionParser::Add(const Json::Value& configuration)
+  void PermissionParser::Add(const Json::Value& configuration, const IAuthorizationParser* authorizationParser)
   {
     if (configuration.type() != Json::arrayValue)
     {
@@ -85,11 +85,28 @@ namespace OrthancPlugins
         throw Orthanc::OrthancException(Orthanc::ErrorCode_BadParameterType, "Permissions elements should be an array of min size 3.");
       }
 
-      Add(permission[0].asString(),    // 0 = HTTP method
-          permission[1].asString(),    // 1 = pattern
-          permission[2].asString()     // 2 = list of | separated permissions (no space)
-                                       // 3 = optional comment
-      );
+      if (permission[1].asString() == "SINGLE_RESOURCE_PATTERNS")
+      {
+        std::vector<boost::regex> singleResourcePatterns;
+        authorizationParser->GetSingleResourcePatterns(singleResourcePatterns);
+
+        for (std::vector<boost::regex>::const_iterator it = singleResourcePatterns.begin(); it != singleResourcePatterns.end(); ++it)
+        {
+          Add(permission[0].asString(),    // 0 = HTTP method
+              it->str(),                   // 1 = pattern
+              permission[2].asString()     // 2 = list of | separated permissions (no space)
+                                           // 3 = optional comment
+          );
+        }
+      }
+      else
+      {
+        Add(permission[0].asString(),    // 0 = HTTP method
+            permission[1].asString(),    // 1 = pattern
+            permission[2].asString()     // 2 = list of | separated permissions (no space)
+                                         // 3 = optional comment
+        );
+      }
     }
 
   }

@@ -1,7 +1,13 @@
 Pending changes in the mainline
 ===============================
 
-* Added new default permissions for dicom-web STOW-RS, QIDO-RS and WADO-RS.
+* Added new default permissions "SINGLE_RESOURCE_PATTERNS" and 
+  reorganized the permissions accordingly.  
+  This notably facilitate accessing a single resource with a user token.  
+  The plugins first check that the user has the right permissions to access the route 
+  and then, the plugins check if the study has one of the authorized_labels
+  of the user.  This notably improves user token handling outside of OE2
+  e.g when using api-key.
 
 
 2023-12-19 - v 0.6.2

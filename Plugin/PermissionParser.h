@@ -50,7 +50,7 @@ namespace OrthancPlugins
              const std::string& patternRegex,
              const std::string& permission);
 
-    void Add(const Json::Value& configuration);
+    void Add(const Json::Value& configuration, const IAuthorizationParser* authorizationParser);
 
     bool Parse(std::set<std::string>& permissions,
                std::string& matchedPattern,
