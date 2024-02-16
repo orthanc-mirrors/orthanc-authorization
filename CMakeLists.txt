@@ -1,5 +1,6 @@
 # Advanced authorization plugin for Orthanc
 # Copyright (C) 2017-2023 Osimis S.A., Belgium
+# Copyright (C) 2024-2024 Orthanc Team SRL, Belgium
 #
 # This program is free software: you can redistribute it and/or
 # modify it under the terms of the GNU Affero General Public License
@@ -19,7 +20,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(OrthancAuthorization)
 
-set(ORTHANC_PLUGIN_VERSION "mainline")
+set(ORTHANC_PLUGIN_VERSION "0.7.0")
 
 if (ORTHANC_PLUGIN_VERSION STREQUAL "mainline")
   set(ORTHANC_FRAMEWORK_VERSION "mainline")

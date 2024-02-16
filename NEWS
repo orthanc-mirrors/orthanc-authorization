@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2024-02-16 - v 0.7.0
+====================
 
 * Added new default permissions "SINGLE_RESOURCE_PATTERNS" and 
   reorganized the permissions accordingly.  
