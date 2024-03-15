@@ -46,7 +46,7 @@ namespace OrthancPlugins
 
     // note: if you add new DICOMWeb routes here, add them in the DefaultConfiguration.json too
     dicomWebStudies_ = boost::regex(
-      "^" + tmp + "/studies/([.0-9]+)(|/series|/metadata)(|/)$");
+      "^" + tmp + "/studies/([.0-9]+)(|/series|/metadata|/instances)(|/)$");
       
     dicomWebSeries_ = boost::regex(
       "^" + tmp + "/studies/([.0-9]+)/series/([.0-9]+)(|/instances|/rendered|/metadata)(|/)$");
