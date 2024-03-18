@@ -2,6 +2,15 @@ Pending changes in the mainline
 ===============================
 
 * Added missing parsing of /dicom-web/studies/.../instances
+* Clarification: the "authorized_labels" field of the user profile
+  is actually a list of studies authorized labels !  
+* The tools/find has been updated to take this into account and will 
+  possibly refuse to perform tools/find at instance or series level if there
+  is no StudyInstanceUID in the query.
+  This fixes forbidden access to e.g. /dicom-web/studies/../series/../instances/..
+  on studies that have at least one authorized_labels.
+
+
 
 2024-02-16 - v 0.7.0
 ====================

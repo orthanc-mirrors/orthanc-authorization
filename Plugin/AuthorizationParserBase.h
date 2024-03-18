@@ -60,9 +60,6 @@ namespace OrthancPlugins
     void AddDicomPatient(AccessedResources& target,
                          const std::string& patientId);
 
-    void AddDicomStudy(AccessedResources& target,
-                       const std::string& studyDicomUid);
-    
     void AddDicomSeries(AccessedResources& target,
                         const std::string& studyDicomUid,
                         const std::string& seriesDicomUid);
@@ -73,6 +70,9 @@ namespace OrthancPlugins
                           const std::string& instanceDicomUid);
 
   public:
+    virtual void AddDicomStudy(AccessedResources& target,
+                               const std::string& studyDicomUid);
+
     explicit AuthorizationParserBase(ICacheFactory& factory);
 
     virtual void Invalidate(Orthanc::ResourceType level,

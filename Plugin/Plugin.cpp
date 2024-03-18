@@ -97,6 +97,52 @@ bool HasAccessToSomeLabels(const OrthancPlugins::IAuthorizationService::UserProf
   return (profile.authorizedLabels.size() > 0);
 }
 
+static bool HasAuthorizedLabelsForResource(bool& granted,
+                                           const OrthancPlugins::IAuthorizationParser::AccessedResources& accesses,
+                                           const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  granted = false;
+
+  if (HasAccessToAllLabels(profile))
+  {
+    granted = true;
+    return true; // we could check labels
+  }
+
+  // Loop over all the accessed resources to ensure access is
+  // granted to each of them
+  for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator
+      access = accesses.begin(); access != accesses.end(); ++access)
+  {
+    // Ignored the access levels that are unchecked
+    // (cf. "UncheckedLevels" option)
+    if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
+    {
+      std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access->GetLevel()) + " \"" + access->GetOrthancId() + "\" is allowed wrt Labels for User '" + profile.name + "'";
+      const std::set<std::string>& resourceLabels = access->GetLabels();
+      std::set<std::string> authorizedResourceLabels;
+
+      Orthanc::Toolbox::GetIntersection(authorizedResourceLabels, resourceLabels, profile.authorizedLabels);
+
+      if (authorizedResourceLabels.size() == 0)
+      {
+        LOG(INFO) << msg << " -> not granted, no authorized labels";
+        granted = false;
+        return true; // we could check labels
+      }
+      else
+      {
+        LOG(INFO) << msg << " -> granted, at least one authorized labels";
+        granted = true;
+        return true; // we could check labels
+      }
+    }
+  }
+
+  // This method only checks if a resource is accessible thanks to its labels.  If we could not check it, we always return false !!
+  return false; // we could not check labels
+}
+
 
 static bool CheckAuthorizedLabelsForResource(bool& granted,
                                              const std::string& uri,
@@ -125,37 +171,10 @@ static bool CheckAuthorizedLabelsForResource(bool& granted,
     if (authorizationParser_->IsListOfResources(uri))
     {
       granted = false;  // if a user does not have access to all labels, he can not have access to a list of resources
-      return true; 
+      return true; // we could check labels
     }
 
-    // Loop over all the accessed resources to ensure access is
-    // granted to each of them
-    for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator
-        access = accesses.begin(); access != accesses.end(); ++access)
-    {
-      // Ignored the access levels that are unchecked
-      // (cf. "UncheckedLevels" option)
-      if (uncheckedLevels_.find(access->GetLevel()) == uncheckedLevels_.end())
-      {
-        std::string msg = std::string("Testing whether access to ") + OrthancPlugins::EnumerationToString(access->GetLevel()) + " \"" + access->GetOrthancId() + "\" is allowed wrt Labels for User '" + profile.name + "'";
-        const std::set<std::string>& resourceLabels = access->GetLabels();
-        std::set<std::string> authorizedResourceLabels;
-
-        Orthanc::Toolbox::GetIntersection(authorizedResourceLabels, resourceLabels, profile.authorizedLabels);
-
-        if (authorizedResourceLabels.size() == 0)
-        {
-          LOG(INFO) << msg << " -> not granted, no authorized labels";
-          return true; // we could check labels
-        }
-        else
-        {
-          granted = true;
-          LOG(INFO) << msg << " -> granted, at least one authorized labels";
-          return true; // we could check labels
-        }
-      }
-    }
+    return HasAuthorizedLabelsForResource(granted, accesses, profile);
   }
 
   // This method only checks if a resource is accessible thanks to its labels.  If we could not check it, we always return false !!
@@ -662,8 +681,8 @@ void ToolsFind(OrthancPluginRestOutput* output,
     {
       // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
 
-      Json::Value body;
-      if (!OrthancPlugins::ReadJson(body, request->body, request->bodySize))
+      Json::Value query;
+      if (!OrthancPlugins::ReadJson(query, request->body, request->bodySize))
       {
         throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
       }
@@ -672,7 +691,48 @@ void ToolsFind(OrthancPluginRestOutput* output,
       OrthancPlugins::IAuthorizationService::UserProfile profile;
       if (GetUserProfileInternal(profile, request) && HasAccessToSomeLabels(profile))
       {
-        AdjustToolsFindQueryLabels(body, profile);
+        Orthanc::ResourceType queryLevel = Orthanc::StringToResourceType(query["Level"].asString().c_str());
+
+        if (queryLevel == Orthanc::ResourceType_Study)
+        {
+          AdjustToolsFindQueryLabels(query, profile);
+        }
+        else if (queryLevel == Orthanc::ResourceType_Patient && !HasAccessToAllLabels(profile))
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Patient level when the user does not have access to ALL labels.");
+        }
+        else if (queryLevel == Orthanc::ResourceType_Series || queryLevel == Orthanc::ResourceType_Instance)
+        {
+          std::string studyInstanceUID;
+
+          if (!HasAccessToAllLabels(profile) && !GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
+          {
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Series or Instance level when the user does not have access to ALL labels or when there is no StudyInstanceUID in the query.");
+          }
+          else
+          {
+            // since this is a series/instance find, make sure the user has access to the parent study
+            Json::Value studyOrhtancIds;
+            if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+            }
+
+            bool granted = false;
+            OrthancPlugins::IAuthorizationParser::AccessedResources accessedResources;
+            authorizationParser_->AddDicomStudy(accessedResources, studyInstanceUID);
+
+            if (!HasAuthorizedLabelsForResource(granted, accessedResources, profile))
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to check resource access based on the authorized_labels.");
+            }
+
+            if (!granted)
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, the user shall have access to the parent study.");
+            }
+          }
+        }
       }
       else // anonymous user profile or resource token
       {
@@ -681,7 +741,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
         // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
         // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
         // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
-        if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, body))
+        if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
         }
@@ -705,7 +765,8 @@ void ToolsFind(OrthancPluginRestOutput* output,
       }
 
       Json::Value result;
-      if (OrthancPlugins::RestApiPost(result, "/tools/find", body, false))
+
+      if (OrthancPlugins::RestApiPost(result, "/tools/find", query, false))
       {
         OrthancPlugins::AnswerJson(result, output);
       }

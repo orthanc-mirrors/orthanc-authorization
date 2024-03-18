@@ -49,5 +49,9 @@ namespace OrthancPlugins
     virtual bool IsListOfResources(const std::string& uri) const = 0;
 
     virtual void GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const = 0;
+
+    virtual void AddDicomStudy(AccessedResources& target,
+                               const std::string& studyDicomUid) = 0;
+
   };
 }
