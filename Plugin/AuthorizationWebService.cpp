@@ -116,14 +116,14 @@ namespace OrthancPlugins
     authClient.AddHeader("Expect", "");
     authClient.SetTimeout(10);
 
-    if (token != NULL &&
-        token->GetType() == TokenType_HttpHeader)
+    if (token != NULL) 
     {
-      // If the token source is a HTTP header, forward it also as a
-      // HTTP header except if it is the Authorization header that might conflict with username_ and password_
+      // Also include the token in the HTTP headers of the query to the auth-service.
       std::string lowerTokenKey;
       Orthanc::Toolbox::ToLowerCase(lowerTokenKey, token->GetKey());
       
+      // However, if we have defined a username/password to access this webservice, 
+      // we should make sure that the added token does not interfere with the username_ and password_.
       if (!(lowerTokenKey == "authorization" && !username_.empty()))
       {
         authClient.AddHeader(token->GetKey(), tokenValue);

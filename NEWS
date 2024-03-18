@@ -9,7 +9,8 @@ Pending changes in the mainline
   is no StudyInstanceUID in the query.
   This fixes forbidden access to e.g. /dicom-web/studies/../series/../instances/..
   on studies that have at least one authorized_labels.
-
+* The GET argument tokens are now also added as HTTP headers in the query to the
+  auth-service (this was already done only for Header tokens).
 
 
 2024-02-16 - v 0.7.0
