@@ -31,6 +31,8 @@
 #include <SerializationToolbox.h>
 #include <EmbeddedResources.h>
 
+#define ORTHANC_PLUGIN_NAME  "authorization"
+
 
 // Configuration of the authorization plugin
 static bool resourceTokensEnabled_ = false;
@@ -1089,7 +1091,7 @@ extern "C"
     Orthanc::Logging::Initialize(context);
 #endif
     
-    OrthancPluginSetDescription(context, "Advanced authorization plugin for Orthanc.");
+    OrthancPlugins::SetDescription(ORTHANC_PLUGIN_NAME, "Advanced authorization plugin for Orthanc.");
 
     try
     {
@@ -1435,7 +1437,7 @@ extern "C"
 
   ORTHANC_PLUGINS_API const char* OrthancPluginGetName()
   {
-    return "authorization";
+    return ORTHANC_PLUGIN_NAME;
   }
 
 
