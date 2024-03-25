@@ -62,6 +62,9 @@
             ["get" , "^/(patients|studies|series|instances)(|/)", "all|view"],
             ["get" , "^/statistics$", "all|view"],
             ["get" , "^/changes$", "all|view"],
+            ["get" , "^/system$", "all|view"],
+            ["get" , "^/plugins$", "all|view"],
+            ["get" , "^/plugins/(.*)$", "all|view"],
 
             // single resources patterns (SINGLE_RESOURCE_PATTERNS is an alias for all single resource patterns defined in https://orthanc.uclouvain.be/hg/orthanc-authorization/file/tip/Plugin/DefaultAuthorizationParser.cpp)
             // (a user must have access to the route + have an authorized label to access the resource)
