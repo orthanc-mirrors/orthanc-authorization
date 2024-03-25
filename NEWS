@@ -1,6 +1,10 @@
 Pending changes in the mainline
 ===============================
 
+
+2024-03-25 - v 0.7.1
+====================
+
 * Added missing parsing of /dicom-web/studies/.../instances
 * Clarification: the "authorized_labels" field of the user profile
   is actually a list of studies authorized labels !  
