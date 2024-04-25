@@ -715,9 +715,13 @@ void ToolsFind(OrthancPluginRestOutput* output,
           {
             // since this is a series/instance find, make sure the user has access to the parent study
             Json::Value studyOrthancIds;
-            if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false) || studyOrthancIds.size() != 1)
+            if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false))
             {
               throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+            }
+            else if (studyOrthancIds.size() != 1)
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
             }
 
             bool granted = false;
@@ -749,9 +753,13 @@ void ToolsFind(OrthancPluginRestOutput* output,
         }
 
         Json::Value studyOrthancIds;
-        if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false) || studyOrthancIds.size() != 1)
+        if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false))
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
+        }
+        else if (studyOrthancIds.size() != 1)
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
         }
 
         std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
