@@ -714,8 +714,8 @@ void ToolsFind(OrthancPluginRestOutput* output,
           else
           {
             // since this is a series/instance find, make sure the user has access to the parent study
-            Json::Value studyOrhtancIds;
-            if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
+            Json::Value studyOrthancIds;
+            if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false) || studyOrthancIds.size() != 1)
             {
               throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
             }
@@ -748,8 +748,8 @@ void ToolsFind(OrthancPluginRestOutput* output,
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
         }
 
-        Json::Value studyOrhtancIds;
-        if (!OrthancPlugins::RestApiPost(studyOrhtancIds, "/tools/lookup", studyInstanceUID, false) || studyOrhtancIds.size() != 1)
+        Json::Value studyOrthancIds;
+        if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false) || studyOrthancIds.size() != 1)
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
         }
@@ -758,7 +758,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
         GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
 
         std::set<std::string> labels;
-        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrhtancIds[0]["ID"].asString(), studyInstanceUID, labels);
+        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrthancIds[0]["ID"].asString(), studyInstanceUID, labels);
         if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");
