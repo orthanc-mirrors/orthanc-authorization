@@ -707,12 +707,13 @@ void ToolsFind(OrthancPluginRestOutput* output,
         {
           std::string studyInstanceUID;
 
-          if (!HasAccessToAllLabels(profile) && !GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
+          if (!HasAccessToAllLabels(profile)) // no need to adjust anything if the user has access to all labels
           {
-            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Series or Instance level when the user does not have access to ALL labels or when there is no StudyInstanceUID in the query.");
-          }
-          else
-          {
+            if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Series or Instance level when the user does not have access to ALL labels or when there is no StudyInstanceUID in the query.");
+            }
+
             // since this is a series/instance find, make sure the user has access to the parent study
             Json::Value studyOrthancIds;
             if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false))
