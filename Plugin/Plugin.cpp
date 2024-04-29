@@ -1094,7 +1094,9 @@ extern "C"
       return -1;
     }
 
-#if ORTHANC_FRAMEWORK_VERSION_IS_ABOVE(1, 7, 2)
+#if ORTHANC_FRAMEWORK_VERSION_IS_ABOVE(1, 12, 4)
+    Orthanc::Logging::InitializePluginContext(context, ORTHANC_PLUGIN_NAME);
+#elif ORTHANC_FRAMEWORK_VERSION_IS_ABOVE(1, 7, 2)
     Orthanc::Logging::InitializePluginContext(context);
 #else
     Orthanc::Logging::Initialize(context);
