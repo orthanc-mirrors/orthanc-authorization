@@ -80,6 +80,9 @@
             // uploads
             ["post", "^/instances$", "all|upload"],
             ["post" , "^/DICOM_WEB_ROOT/studies$", "all|upload"],
+            ["post", "^/tools/create-dicom$", "all|upload"],
+            ["post", "^/stl/encode-rtstruct$", "all|upload"],
+            ["post", "^/stl/encode-nifti$", "all|upload"],
 
             // monitor jobs you have created
             ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],

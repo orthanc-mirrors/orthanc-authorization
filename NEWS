@@ -3,6 +3,8 @@ Pending changes in the mainline
 
 * Fix wrong forbidden access to /dicom-web/studies/../series for users who 
   had "authorized_labels"=="*"
+* Added new default permissions for /tools/create-dicom, 
+  /stl/encode-rtstruct, /stl/encode-nifti
 
 2024-03-25 - v 0.7.1
 ====================
