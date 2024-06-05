@@ -69,17 +69,17 @@ namespace OrthancPlugins
 
     void SetIdentifier(const std::string& webServiceIdentifier);
 
-    virtual bool HasUserProfile() const
+    virtual bool HasUserProfile() const ORTHANC_OVERRIDE
     {
       return !userProfileUrl_.empty();
     }
 
-    virtual bool HasCreateToken() const
+    virtual bool HasCreateToken() const ORTHANC_OVERRIDE
     {
       return !tokenCreationBaseUrl_.empty();
     }
 
-    virtual bool HasTokenValidation() const
+    virtual bool HasTokenValidation() const ORTHANC_OVERRIDE
     {
       return !tokenValidationUrl_.empty();
     }
@@ -93,7 +93,7 @@ namespace OrthancPlugins
 
     virtual bool DecodeToken(DecodedToken& response,
                              const std::string& tokenKey, 
-                             const std::string& tokenValue);
+                             const std::string& tokenValue) ORTHANC_OVERRIDE;
 
     static void ToJson(Json::Value& output, const UserProfile& profile);
     
