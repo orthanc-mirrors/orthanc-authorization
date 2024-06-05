@@ -37,4 +37,15 @@ namespace OrthancPlugins
   {
   }
 
+  bool Token::operator< (const Token &right) const
+  {
+    if (type_ != right.type_)
+    {
+      return type_ < right.type_;
+    }
+    else
+    {
+      return key_ < right.key_ ;
+    }
+  }
 }

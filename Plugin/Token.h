@@ -22,11 +22,9 @@
 
 #include "Enumerations.h"
 
-#include <boost/noncopyable.hpp>
-
 namespace OrthancPlugins
 { 
-  class Token : public boost::noncopyable
+  class Token
   {
   private:
     TokenType   type_;
@@ -49,16 +47,6 @@ namespace OrthancPlugins
     }
 
     // required to use this class in std::set
-    bool operator< (const Token &right) const
-    {
-      if (type_ != right.type_)
-      {
-        return type_ < right.type_;
-      }
-      else
-      {
-        return key_ < right.key_ ;
-      }
-    }
+    bool operator< (const Token &right) const;
   };
 }
