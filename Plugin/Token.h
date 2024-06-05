@@ -22,9 +22,11 @@
 
 #include "Enumerations.h"
 
+#include <boost/noncopyable.hpp>
+
 namespace OrthancPlugins
 { 
-  class Token
+  class Token : public boost::noncopyable
   {
   private:
     TokenType   type_;

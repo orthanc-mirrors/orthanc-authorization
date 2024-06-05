@@ -26,9 +26,11 @@
 
 namespace OrthancPlugins
 {
-  PermissionPattern::PermissionPattern(const OrthancPluginHttpMethod& method, const std::string& patternRegex, const std::string& permissions) :
-    method(method),
-    pattern(patternRegex)
+  PermissionPattern::PermissionPattern(const OrthancPluginHttpMethod& method,
+                                       const std::string& patternRegex,
+                                       const std::string& permissions) :
+    method_(method),
+    pattern_(patternRegex)
   {
     if (!permissions.empty())
     {
@@ -37,7 +39,7 @@ namespace OrthancPlugins
 
       for (size_t i = 0; i < permissionsVector.size(); ++i)
       {
-        this->permissions.insert(permissionsVector[i]);
+        permissions_.insert(permissionsVector[i]);
       }
     }
   }
@@ -70,6 +72,16 @@ namespace OrthancPlugins
     dicomWebRoot_(dicomWebRoot),
     oe2Root_(oe2Root)
   {
+  }
+
+  PermissionParser::~PermissionParser()
+  {
+    for (std::list<PermissionPattern*>::iterator it = permissionsPattern_.begin();
+         it != permissionsPattern_.begin(); ++it)
+    {
+      assert(*it != NULL);
+      delete *it;
+    }
   }
 
   void PermissionParser::Add(const Json::Value& configuration, const IAuthorizationParser* authorizationParser)
@@ -150,7 +162,7 @@ namespace OrthancPlugins
 
     LOG(WARNING) << "Authorization plugin: adding a new permission pattern: " << lowerCaseMethod << " " << regex << " - " << permission;
 
-    permissionsPattern_.push_back(PermissionPattern(parsedMethod, regex, permission));
+    permissionsPattern_.push_back(new PermissionPattern(parsedMethod, regex, permission));
   }
 
   bool PermissionParser::Parse(std::set<std::string>& permissions,
@@ -163,16 +175,16 @@ namespace OrthancPlugins
     boost::mutex::scoped_lock lock(mutex_);
 
 
-    for (std::list<PermissionPattern>::const_iterator it = permissionsPattern_.begin();
-      it != permissionsPattern_.end(); ++it)
+    for (std::list<PermissionPattern*>::const_iterator it = permissionsPattern_.begin();
+         it != permissionsPattern_.end(); ++it)
     {
-      if (method == it->method)
+      if (method == (*it)->GetMethod())
       {
         boost::smatch what;
-        if (boost::regex_match(uri, what, it->pattern))
+        if (boost::regex_match(uri, what, (*it)->GetPattern()))
         {
-          matchedPattern = it->pattern.expression();
-          permissions = it->permissions;
+          matchedPattern = (*it)->GetPattern().expression();
+          permissions = (*it)->GetPermissions();
           return true;
         }
       }

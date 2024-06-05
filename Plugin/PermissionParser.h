@@ -27,26 +27,47 @@
 
 namespace OrthancPlugins
 {
-  struct PermissionPattern
+  class PermissionPattern : public boost::noncopyable
   {
-    OrthancPluginHttpMethod   method;
-    boost::regex              pattern;
-    std::set<std::string>     permissions;
+  private:
+    OrthancPluginHttpMethod   method_;
+    boost::regex              pattern_;
+    std::set<std::string>     permissions_;
 
-    PermissionPattern(const OrthancPluginHttpMethod& method, const std::string& patternRegex, const std::string& permissions);
+  public:
+    PermissionPattern(const OrthancPluginHttpMethod& method,
+                      const std::string& patternRegex,
+                      const std::string& permissions);
+
+    OrthancPluginHttpMethod GetMethod() const
+    {
+      return method_;
+    }
+
+    const boost::regex& GetPattern() const
+    {
+      return pattern_;
+    }
+
+    const std::set<std::string>& GetPermissions() const
+    {
+      return permissions_;
+    }
   };
 
-  class PermissionParser
+  class PermissionParser : public boost::noncopyable
   { 
   private:
     mutable boost::mutex mutex_; 
-    std::list<PermissionPattern> permissionsPattern_;
+    std::list<PermissionPattern*> permissionsPattern_;
     std::string dicomWebRoot_;
     std::string oe2Root_;
 
   public:
     PermissionParser(const std::string& dicomWebRoot,
                      const std::string& oe2Root);
+
+    ~PermissionParser();
 
     void Add(const std::string& method,
              const std::string& patternRegex,
