@@ -1054,6 +1054,75 @@ void GetUserProfile(OrthancPluginRestOutput* output,
   }
 }
 
+
+void AuthSettingsRoles(OrthancPluginRestOutput* output,
+                       const char* /*url*/,
+                       const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (authorizationService_.get() == NULL) // this is not suppposed to happen
+  {
+    OrthancPlugins::AnswerHttpError(404, output);
+    return;
+  }
+
+  if (request->method == OrthancPluginHttpMethod_Get)
+  {
+    Json::Value roles;
+    
+    if (!authorizationService_->GetSettingsRoles(roles))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Could not retrieve roles from the auth-service", true);
+    }
+
+    OrthancPlugins::AnswerJson(roles, output);
+  }
+  else if (request->method == OrthancPluginHttpMethod_Put)
+  {
+    Json::Value roles;
+    Json::Value response;
+
+    if (!OrthancPlugins::ReadJson(roles, request->body, request->bodySize))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+    }
+
+    if (!authorizationService_->UpdateSettingsRoles(response, roles))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Could not update roles in the auth-service", true);
+    }
+    OrthancPlugins::AnswerJson(response, output);
+  }
+  else
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET,PUT");
+  }
+}
+
+
+void GetPermissionList(OrthancPluginRestOutput* output,
+                       const char* /*url*/,
+                       const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Get)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+  }
+  else
+  {
+    std::set<std::string> permissionsList = permissionParser_->GetPermissionsList();
+
+    Json::Value response = Json::arrayValue;
+    Orthanc::SerializationToolbox::WriteSetOfStrings(response, permissionsList);
+
+    OrthancPlugins::AnswerJson(response, output);
+  }
+}
+
+
 void MergeJson(Json::Value &a, const Json::Value &b) {                                                                        
                                                                                                                   
   if (!a.isObject() || !b.isObject())
@@ -1187,6 +1256,7 @@ extern "C"
         std::string urlTokenValidation;
         std::string urlTokenCreationBase;
         std::string urlUserProfile;
+        std::string urlSettingsRole;
         std::string urlRoot;
 
         static const char* WEB_SERVICE_ROOT = "WebServiceRootUrl";
@@ -1194,6 +1264,7 @@ extern "C"
         static const char* WEB_SERVICE_TOKEN_VALIDATION = "WebServiceTokenValidationUrl";
         static const char* WEB_SERVICE_TOKEN_CREATION_BASE = "WebServiceTokenCreationBaseUrl";
         static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
+        static const char* WEB_SERVICE_SETTINGS_ROLES = "WebServiceSettingsRolesUrl";
         static const char* WEB_SERVICE_TOKEN_VALIDATION_LEGACY = "WebService";
         if (pluginConfiguration.LookupStringValue(urlRoot, WEB_SERVICE_ROOT))
         {
@@ -1201,6 +1272,7 @@ extern "C"
           urlTokenValidation = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/validate");
           urlTokenCreationBase = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/");
           urlUserProfile = Orthanc::Toolbox::JoinUri(urlRoot, "/user/get-profile");
+          urlSettingsRole = Orthanc::Toolbox::JoinUri(urlRoot, "/settings/roles");
         }
         else 
         {
@@ -1213,6 +1285,7 @@ extern "C"
 
           pluginConfiguration.LookupStringValue(urlTokenCreationBase, WEB_SERVICE_TOKEN_CREATION_BASE);
           pluginConfiguration.LookupStringValue(urlUserProfile, WEB_SERVICE_USER_PROFILE);
+          pluginConfiguration.LookupStringValue(urlSettingsRole, WEB_SERVICE_SETTINGS_ROLES);
         }
 
         authorizationParser_.reset(new OrthancPlugins::DefaultAuthorizationParser(factory, dicomWebRoot));
@@ -1257,6 +1330,15 @@ extern "C"
         else
         {
           LOG(WARNING) << "Authorization plugin: no base url defined for Token Creation";
+        }
+
+        if (!urlSettingsRole.empty())
+        {
+          LOG(WARNING) << "Authorization plugin: settings-roles url defined : " << urlSettingsRole;
+        }
+        else
+        {
+          LOG(WARNING) << "Authorization plugin: no settings-roles url defined";
         }
 
         if (!resourceTokensEnabled_ && permissionParser_.get() == NULL)
@@ -1367,7 +1449,8 @@ extern "C"
         std::unique_ptr<OrthancPlugins::AuthorizationWebService> webService(new OrthancPlugins::AuthorizationWebService(urlTokenValidation,
                                                                                                                         urlTokenCreationBase,
                                                                                                                         urlUserProfile,
-                                                                                                                        urlTokenDecoder));
+                                                                                                                        urlTokenDecoder,
+                                                                                                                        urlSettingsRole));
 
         std::string webServiceIdentifier;
         if (pluginConfiguration.LookupStringValue(webServiceIdentifier, "WebServiceIdentifier"))
@@ -1401,6 +1484,8 @@ extern "C"
           OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user/profile", true);
           OrthancPlugins::RegisterRestCallback<ToolsFind>("/tools/find", true);
           OrthancPlugins::RegisterRestCallback<ToolsLabels>("/tools/labels", true);
+          OrthancPlugins::RegisterRestCallback<AuthSettingsRoles>("/auth/settings/roles", true);
+          OrthancPlugins::RegisterRestCallback<GetPermissionList>("/auth/settings/permissions", true);
         }
 
         if (!urlTokenCreationBase.empty())

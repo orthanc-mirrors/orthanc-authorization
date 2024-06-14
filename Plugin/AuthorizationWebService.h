@@ -35,6 +35,7 @@ namespace OrthancPlugins
     std::string tokenValidationUrl_;
     std::string tokenDecoderUrl_;
     std::string tokenCreationBaseUrl_;
+    std::string settingsRolesUrl_;
 
   protected:
     virtual bool IsGrantedInternal(unsigned int& validity,
@@ -56,11 +57,13 @@ namespace OrthancPlugins
     AuthorizationWebService(const std::string& tokenValidationUrl, 
                             const std::string& tokenCreationBaseUrl, 
                             const std::string& userProfileUrl,
-                            const std::string& tokenDecoderUrl) :
+                            const std::string& tokenDecoderUrl,
+                            const std::string& settingsRolesUrl) :
       userProfileUrl_(userProfileUrl),
       tokenValidationUrl_(tokenValidationUrl),
       tokenDecoderUrl_(tokenDecoderUrl),
-      tokenCreationBaseUrl_(tokenCreationBaseUrl)
+      tokenCreationBaseUrl_(tokenCreationBaseUrl),
+      settingsRolesUrl_(settingsRolesUrl)
     {
     }
 
@@ -84,6 +87,11 @@ namespace OrthancPlugins
       return !tokenValidationUrl_.empty();
     }
 
+    virtual bool HasSettingsRoles() const
+    {
+      return !settingsRolesUrl_.empty();
+    }
+
     virtual bool CreateToken(IAuthorizationService::CreatedToken& response,
                              const std::string& tokenType, 
                              const std::string& id, 
@@ -94,6 +102,10 @@ namespace OrthancPlugins
     virtual bool DecodeToken(DecodedToken& response,
                              const std::string& tokenKey, 
                              const std::string& tokenValue);
+
+    virtual bool GetSettingsRoles(Json::Value& roles);
+    virtual bool UpdateSettingsRoles(Json::Value& response,
+                                     const Json::Value& roles);
 
     static void ToJson(Json::Value& output, const UserProfile& profile);
     

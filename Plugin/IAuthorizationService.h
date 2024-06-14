@@ -110,5 +110,10 @@ namespace OrthancPlugins
     virtual bool HasUserProfile() const = 0;
     virtual bool HasCreateToken() const = 0;
     virtual bool HasTokenValidation() const = 0;
+
+    virtual bool GetSettingsRoles(Json::Value& roles) = 0;
+    virtual bool UpdateSettingsRoles(Json::Value& response,
+                                     const Json::Value& roles) = 0;
+
   };
 }

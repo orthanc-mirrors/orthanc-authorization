@@ -344,6 +344,7 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat,
                                       "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
     }
+    // LOG(INFO) << jsonProfile.toStyledString();
 
     profile.name = jsonProfile[USER_NAME].asString();
 
@@ -450,5 +451,77 @@ namespace OrthancPlugins
 
     return false;
   }
+
+  bool AuthorizationWebService::GetSettingsRoles(Json::Value& roles)
+  {
+    if (settingsRolesUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get settings-roles if the 'WebServiceSettingsRolesUrl' is not configured");
+    }
+
+    Orthanc::WebServiceParameters authWebservice;
+
+    if (!username_.empty())
+    {
+      authWebservice.SetCredentials(username_, password_);
+    }
+
+    try
+    {
+      Orthanc::HttpClient authClient(authWebservice, "");
+      authClient.SetUrl(settingsRolesUrl_);
+      authClient.SetMethod(Orthanc::HttpMethod_Get);
+      authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
+
+      authClient.ApplyAndThrowException(roles);
+
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
+
+  }
+
+  bool AuthorizationWebService::UpdateSettingsRoles(Json::Value& response, const Json::Value& roles)
+  {
+    if (settingsRolesUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not update settings-roles if the 'WebServiceSettingsRolesUrl' is not configured");
+    }
+
+    Orthanc::WebServiceParameters authWebservice;
+
+    if (!username_.empty())
+    {
+      authWebservice.SetCredentials(username_, password_);
+    }
+
+    try
+    {
+      std::string bodyAsString;
+      Orthanc::Toolbox::WriteFastJson(bodyAsString, roles);
+
+      Orthanc::HttpClient authClient(authWebservice, "");
+      authClient.SetUrl(settingsRolesUrl_);
+      authClient.AssignBody(bodyAsString);
+      authClient.SetMethod(Orthanc::HttpMethod_Put);
+      authClient.AddHeader("Content-Type", "application/json");
+      authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
+
+      authClient.ApplyAndThrowException(response);
+
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
+
+  }
+
 
 }

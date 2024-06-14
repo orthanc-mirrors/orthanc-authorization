@@ -115,7 +115,13 @@
 
             // settings
             ["put", "^/tools/log-level$", "all|settings"],
-            ["get", "^/tools/log-level$", "all|settings"]
+            ["get", "^/tools/log-level$", "all|settings"],
+ 
+            // permission settings
+            ["put", "^/auth/settings/roles$", "admin-permissions"],
+            ["get", "^/auth/settings/roles$", "admin-permissions"],
+            ["get", "^/auth/settings/permissions$", "admin-permissions"]
+ 
         ]
     }
 }

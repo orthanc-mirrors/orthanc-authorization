@@ -41,6 +41,7 @@ namespace OrthancPlugins
   private:
     mutable boost::mutex mutex_; 
     std::list<PermissionPattern> permissionsPattern_;
+    std::set<std::string> permissionsList_;
     std::string dicomWebRoot_;
     std::string oe2Root_;
 
@@ -58,5 +59,10 @@ namespace OrthancPlugins
                std::string& matchedPattern,
                const OrthancPluginHttpMethod& method,
                const std::string& uri) const;
+
+    const std::set<std::string>& GetPermissionsList() const
+    {
+      return permissionsList_;
+    }
   };
 }

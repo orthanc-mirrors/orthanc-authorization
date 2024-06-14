@@ -106,5 +106,15 @@ namespace OrthancPlugins
                                      tokenValue);
     }
 
+    virtual bool GetSettingsRoles(Json::Value& roles)
+    {
+      return decorated_->GetSettingsRoles(roles);
+    }
+
+    virtual bool UpdateSettingsRoles(Json::Value& response, const Json::Value& roles)
+    {
+      return decorated_->UpdateSettingsRoles(response, roles);
+    }
+
  };
 }

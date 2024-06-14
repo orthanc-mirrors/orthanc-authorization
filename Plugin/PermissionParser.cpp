@@ -151,6 +151,20 @@ namespace OrthancPlugins
     LOG(WARNING) << "Authorization plugin: adding a new permission pattern: " << lowerCaseMethod << " " << regex << " - " << permission;
 
     permissionsPattern_.push_back(PermissionPattern(parsedMethod, regex, permission));
+    
+    { // extract individual permissions
+      std::set<std::string> permissions;
+      Orthanc::Toolbox::SplitString(permissions, permission, '|');
+
+      for (std::set<std::string>::const_iterator it = permissions.begin(); it != permissions.end(); ++it)
+      {
+        if (!it->empty())
+        {
+          permissionsList_.insert(*it);
+        }
+      }
+      
+    }
   }
 
   bool PermissionParser::Parse(std::set<std::string>& permissions,

@@ -1,3 +1,13 @@
+Pending changes in the mainline
+===============================
+
+* Added support for roles/permissions edition:
+  - new configuration "WebServiceSettingsRolesUrl"
+  - new API routes:
+    - /auth/settings/roles (GET/PUT)
+    - /auth/settings/permissions (GET)
+
+
 2024-05-16 - v 0.7.2
 ====================
 
