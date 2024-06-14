@@ -72,7 +72,7 @@ namespace OrthancPlugins
 
   public:
     virtual void AddDicomStudy(AccessedResources& target,
-                               const std::string& studyDicomUid);
+                               const std::string& studyDicomUid) ORTHANC_OVERRIDE;
 
     explicit AuthorizationParserBase(ICacheFactory& factory);
 

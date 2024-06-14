@@ -67,17 +67,17 @@ namespace OrthancPlugins
     CachedAuthorizationService(BaseAuthorizationService* decorated /* takes ownership */,
                                ICacheFactory& factory);
 
-    virtual bool HasUserProfile() const
+    virtual bool HasUserProfile() const ORTHANC_OVERRIDE
     {
       return decorated_->HasUserProfile();
     }
 
-    virtual bool HasCreateToken() const
+    virtual bool HasCreateToken() const ORTHANC_OVERRIDE
     {
       return decorated_->HasCreateToken();
     }
 
-    virtual bool HasTokenValidation() const
+    virtual bool HasTokenValidation() const ORTHANC_OVERRIDE
     {
       return decorated_->HasTokenValidation();
     }
@@ -87,7 +87,7 @@ namespace OrthancPlugins
                              const std::string& id, 
                              const std::vector<IAuthorizationService::OrthancResource>& resources,
                              const std::string& expirationDateString,
-                             const uint64_t& validityDuration)
+                             const uint64_t& validityDuration) ORTHANC_OVERRIDE
     {
       return decorated_->CreateToken(response,
                                      tokenType,
@@ -99,7 +99,7 @@ namespace OrthancPlugins
 
     virtual bool DecodeToken(DecodedToken& response,
                              const std::string& tokenKey, 
-                             const std::string& tokenValue)
+                             const std::string& tokenValue) ORTHANC_OVERRIDE
     {
       return decorated_->DecodeToken(response,
                                      tokenKey,

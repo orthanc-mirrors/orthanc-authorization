@@ -22,6 +22,8 @@
 
 #include "IAuthorizationService.h"
 
+#include <Compatibility.h>
+
 
 namespace OrthancPlugins
 {
@@ -55,14 +57,14 @@ namespace OrthancPlugins
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access,
                            const Token& token,
-                           const std::string& tokenValue)
+                           const std::string& tokenValue) ORTHANC_OVERRIDE
     {
       return IsGrantedInternal(validity, method, access, &token, tokenValue);
     }
     
     virtual bool IsGrantedToAnonymousUser(unsigned int& validity,
                                           OrthancPluginHttpMethod method,
-                                          const AccessedResource& access)
+                                          const AccessedResource& access) ORTHANC_OVERRIDE
     {
       return IsGrantedInternal(validity, method, access, NULL, "");
     }
@@ -70,20 +72,20 @@ namespace OrthancPlugins
     virtual bool GetUserProfile(unsigned int& validity,
                                 UserProfile& profile /* out */,
                                 const Token& token,
-                                const std::string& tokenValue)
+                                const std::string& tokenValue) ORTHANC_OVERRIDE
     {
       return GetUserProfileInternal(validity, profile, &token, tokenValue);
     }
 
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
-                                         UserProfile& profile /* out */)
+                                         UserProfile& profile /* out */) ORTHANC_OVERRIDE
     {
       return GetUserProfileInternal(validity, profile, NULL, "");
     }
 
     virtual bool HasUserPermission(unsigned int& validity /* out */,
                                    const std::set<std::string>& anyOfPermissions,
-                                   const UserProfile& profile)
+                                   const UserProfile& profile) ORTHANC_OVERRIDE
     {
       if (anyOfPermissions.size() == 0)
       {
@@ -101,7 +103,7 @@ namespace OrthancPlugins
     }
 
     virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
-                                            const std::set<std::string>& anyOfPermissions)
+                                            const std::set<std::string>& anyOfPermissions) ORTHANC_OVERRIDE
     {
       if (anyOfPermissions.size() == 0)
       {

@@ -52,10 +52,10 @@ namespace OrthancPlugins
 
     virtual bool Parse(AccessedResources& target,
                        const std::string& uri,
-                       const std::map<std::string, std::string>& getArguments);
+                       const std::map<std::string, std::string>& getArguments) ORTHANC_OVERRIDE;
 
-    virtual bool IsListOfResources(const std::string& uri) const;
+    virtual bool IsListOfResources(const std::string& uri) const ORTHANC_OVERRIDE;
 
-    virtual void GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const;
+    virtual void GetSingleResourcePatterns(std::vector<boost::regex>& patterns) const ORTHANC_OVERRIDE;
   };
 }

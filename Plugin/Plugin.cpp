@@ -229,8 +229,6 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
                                     OrthancPluginHttpMethod method,
                                     const OrthancPlugins::AccessedResource& access)
 {
-  unsigned int validity;  // ignored
-
   // Ignored the access levels that are unchecked
   // (cf. "UncheckedLevels" option)
   if (uncheckedLevels_.find(access.GetLevel()) == uncheckedLevels_.end())
@@ -242,6 +240,7 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
 
     if (authTokens.empty())
     {
+      unsigned int validity;  // ignored
       granted = authorizationService_->IsGrantedToAnonymousUser(validity, method, access);
     }
     else
@@ -249,6 +248,7 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
       // Loop over all the authorization tokens in the request until finding one that is granted
       for (size_t i = 0; i < authTokens.size(); ++i)
       {
+        unsigned int validity;  // ignored
         if (authorizationService_->IsGranted(validity, method, access, authTokens[i].GetToken(), authTokens[i].GetValue()))
         {
           granted = true;
@@ -284,8 +284,6 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
 {
   try
   {
-    unsigned int validity;  // ignored
-
     // Allow GET accesses to unchecked resources/folders (usually static resources)
     ////////////////////////////////////////////////////////////////
 
@@ -314,7 +312,6 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
     bool hasUserRequiredPermissions = false;
-    bool hasAuthorizedLabelsForResource = false;
 
     if (permissionParser_.get() != NULL &&
       authorizationService_.get() != NULL) 
@@ -328,6 +325,8 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
           
           LOG(INFO) << msg; 
+
+          unsigned int validity;  // ignored
           if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
           {
             LOG(INFO) << msg << " -> granted";
@@ -351,13 +350,16 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             unsigned int validityNotUsed;
             authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
 
+            unsigned int validity;  // ignored
             if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
             {
               LOG(INFO) << msg << " -> granted";
               hasUserRequiredPermissions = true;
 
               // check labels permissions
-              std::string msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
+              msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
+
+              bool hasAuthorizedLabelsForResource = false;
               if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, getArguments, profile))
               {
                 if (hasAuthorizedLabelsForResource)
@@ -795,7 +797,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
     }
     else
     {
-      throw e;
+      throw;
     }
   }
 
@@ -860,7 +862,7 @@ void ToolsLabels(OrthancPluginRestOutput* output,
     }
     else
     {
-      throw e;
+      throw;
     }
   }
 }
@@ -988,11 +990,6 @@ void DecodeToken(OrthancPluginRestOutput* output,
     {
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
     }
-
-    Json::Value authPayload;
-
-    authPayload["token-key"] = body["TokenKey"].asString();
-    authPayload["token-value"] = body["TokenValue"].asString();
 
     OrthancPlugins::IAuthorizationService::DecodedToken decodedToken;
     if (authorizationService_->DecodeToken(decodedToken,
@@ -1176,7 +1173,7 @@ extern "C"
 
     try
     {
-      static const char* PLUGIN_SECTION = "Authorization";
+      static const char* const PLUGIN_SECTION = "Authorization";
 
       OrthancPlugins::OrthancConfiguration orthancFullConfiguration;
 
@@ -1259,13 +1256,8 @@ extern "C"
         std::string urlSettingsRole;
         std::string urlRoot;
 
-        static const char* WEB_SERVICE_ROOT = "WebServiceRootUrl";
-        static const char* WEB_SERVICE_TOKEN_DECODER = "WebServiceTokenDecoderUrl";
-        static const char* WEB_SERVICE_TOKEN_VALIDATION = "WebServiceTokenValidationUrl";
-        static const char* WEB_SERVICE_TOKEN_CREATION_BASE = "WebServiceTokenCreationBaseUrl";
-        static const char* WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
-        static const char* WEB_SERVICE_SETTINGS_ROLES = "WebServiceSettingsRolesUrl";
-        static const char* WEB_SERVICE_TOKEN_VALIDATION_LEGACY = "WebService";
+        static const char* const WEB_SERVICE_ROOT = "WebServiceRootUrl";
+
         if (pluginConfiguration.LookupStringValue(urlRoot, WEB_SERVICE_ROOT))
         {
           urlTokenDecoder = Orthanc::Toolbox::JoinUri(urlRoot, "/tokens/decode");
@@ -1276,6 +1268,13 @@ extern "C"
         }
         else 
         {
+          static const char* const WEB_SERVICE_TOKEN_DECODER = "WebServiceTokenDecoderUrl";
+          static const char* const WEB_SERVICE_TOKEN_VALIDATION = "WebServiceTokenValidationUrl";
+          static const char* const WEB_SERVICE_TOKEN_CREATION_BASE = "WebServiceTokenCreationBaseUrl";
+          static const char* const WEB_SERVICE_USER_PROFILE = "WebServiceUserProfileUrl";
+          static const char* const WEB_SERVICE_SETTINGS_ROLES = "WebServiceSettingsRolesUrl";
+          static const char* const WEB_SERVICE_TOKEN_VALIDATION_LEGACY = "WebService";
+
           pluginConfiguration.LookupStringValue(urlTokenValidation, WEB_SERVICE_TOKEN_VALIDATION);
           pluginConfiguration.LookupStringValue(urlTokenDecoder, WEB_SERVICE_TOKEN_DECODER);
           if (urlTokenValidation.empty())
@@ -1306,7 +1305,7 @@ extern "C"
           LOG(WARNING) << "Authorization plugin: url defined for User Profile: " << urlUserProfile << ", user tokens validation is enabled";
           userTokensEnabled_ = true;
           
-          static const char* PERMISSIONS = "Permissions";        
+          static const char* const PERMISSIONS = "Permissions";
           if (!pluginConfiguration.GetJson().isMember(PERMISSIONS))
           {
             throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: Missing required \"" + std::string(PERMISSIONS) + 
