@@ -149,6 +149,7 @@ static bool HasAuthorizedLabelsForResource(bool& granted,
 
 static bool CheckAuthorizedLabelsForResource(bool& granted,
                                              const std::string& uri,
+                                             OrthancPluginHttpMethod method,
                                              const OrthancPlugins::AssociativeArray& getArguments,
                                              const OrthancPlugins::IAuthorizationService::UserProfile& profile)
 {
@@ -171,7 +172,7 @@ static bool CheckAuthorizedLabelsForResource(bool& granted,
       return false;  // Unable to parse this URI, we could not check labels
     }
 
-    if (authorizationParser_->IsListOfResources(uri))
+    if (authorizationParser_->IsListOfResources(uri) && method == OrthancPluginHttpMethod_Get)
     {
       granted = false;  // if a user does not have access to all labels, he can not have access to a list of resources
       return true; // we could check labels
@@ -360,7 +361,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
               msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
 
               bool hasAuthorizedLabelsForResource = false;
-              if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, getArguments, profile))
+              if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, method, getArguments, profile))
               {
                 if (hasAuthorizedLabelsForResource)
                 {

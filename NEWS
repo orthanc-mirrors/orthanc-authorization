@@ -6,6 +6,7 @@ Pending changes in the mainline
   - new API routes:
     - /auth/settings/roles (GET/PUT)
     - /auth/settings/permissions (GET)
+* Fix wrong access to POST /instances that was considered as a resource list.
 
 
 2024-05-16 - v 0.7.2
