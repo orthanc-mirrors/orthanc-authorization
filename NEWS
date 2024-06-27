@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2024-06-27 - v 0.8.0
+====================
 
 * Added support for roles/permissions edition:
   - new configuration "WebServiceSettingsRolesUrl"
