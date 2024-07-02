@@ -1071,7 +1071,7 @@ void AuthSettingsRoles(OrthancPluginRestOutput* output,
     
     if (!authorizationService_->GetSettingsRoles(roles))
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Could not retrieve roles from the auth-service", true);
+      LOG(WARNING) << "Could not retrieve roles from the auth-service.  The auth-service might not provide this feature or is not configured correctly.";
     }
 
     OrthancPlugins::AnswerJson(roles, output);
