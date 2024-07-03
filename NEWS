@@ -1,4 +1,8 @@
+2024-07-03 - v 0.8.1
+====================
+
 * Fix internal error when the auth-service was not configured to implement the role/permission API
+
 
 2024-06-27 - v 0.8.0
 ====================
