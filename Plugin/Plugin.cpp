@@ -671,6 +671,22 @@ bool GetStudyInstanceUIDFromQuery(std::string& studyInstanceUID, const Json::Val
   return true;
 }
 
+void GetStudyOrthancIdFromStudyInstanceUID(std::vector<std::string>& studyOrthancIds, const std::string& studyInstanceUID)
+{
+  studyOrthancIds.clear();
+  Json::Value response;
+  if (OrthancPlugins::RestApiPost(response, "/tools/lookup", studyInstanceUID, false))
+  {
+    for (Json::ArrayIndex i = 0; i < response.size(); ++i)
+    {
+      if (response[i]["Type"] == "Study")
+      {
+        studyOrthancIds.push_back(response[i]["ID"].asString());
+      }
+    }
+  }
+}
+
 void ToolsFind(OrthancPluginRestOutput* output,
                const char* /*url*/,
                const OrthancPluginHttpRequest* request)
@@ -719,12 +735,10 @@ void ToolsFind(OrthancPluginRestOutput* output,
             }
 
             // since this is a series/instance find, make sure the user has access to the parent study
-            Json::Value studyOrthancIds;
-            if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false))
-            {
-              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
-            }
-            else if (studyOrthancIds.size() != 1)
+            std::vector<std::string> studyOrthancIds;
+            GetStudyOrthancIdFromStudyInstanceUID(studyOrthancIds, studyInstanceUID);
+
+            if (studyOrthancIds.size() != 1)
             {
               throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
             }
@@ -757,12 +771,10 @@ void ToolsFind(OrthancPluginRestOutput* output,
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
         }
 
-        Json::Value studyOrthancIds;
-        if (!OrthancPlugins::RestApiPost(studyOrthancIds, "/tools/lookup", studyInstanceUID, false))
-        {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query.");
-        }
-        else if (studyOrthancIds.size() != 1)
+        std::vector<std::string> studyOrthancIds;
+        GetStudyOrthancIdFromStudyInstanceUID(studyOrthancIds, studyInstanceUID);
+
+        if (studyOrthancIds.size() != 1)
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
         }
@@ -771,7 +783,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
         GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
 
         std::set<std::string> labels;
-        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrthancIds[0]["ID"].asString(), studyInstanceUID, labels);
+        OrthancPlugins::AccessedResource accessedResource(Orthanc::ResourceType_Study, studyOrthancIds[0], studyInstanceUID, labels);
         if (!IsResourceAccessGranted(authTokens, request->method, accessedResource))
         {
           throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find with a resource token, the resource must grant access to the StudyInstanceUID specified in the query.");

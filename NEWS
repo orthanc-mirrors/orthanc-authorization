@@ -1,3 +1,9 @@
+Pending changes in the mainline
+===============================
+
+* Fix forbidden access when the PatientID and StudyInstanceUID are identical.
+
+
 2024-07-03 - v 0.8.1
 ====================
 
