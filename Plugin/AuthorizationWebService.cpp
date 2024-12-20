@@ -456,7 +456,8 @@ namespace OrthancPlugins
   {
     if (settingsRolesUrl_.empty())
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get settings-roles if the 'WebServiceSettingsRolesUrl' is not configured");
+      LOG(INFO) << "Can not get settings-roles if the 'WebServiceSettingsRolesUrl' is not configured";
+      return false;
     }
 
     Orthanc::WebServiceParameters authWebservice;

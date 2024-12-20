@@ -22,6 +22,9 @@
         // The URL of the auth webservice route implementing token decoding (optional)
         // "WebServiceTokenDecoderUrl": "http://change-me:8000/tokens/decode"
 
+        // The URL of the auth webservice route implementing roles assignements (optional)
+        // "WebServiceSettingsRolesUrl": "http://change-me:8000/settings/roles"
+
         // The username and password to connect to the webservice (optional)
         //"WebServiceUsername": "change-me",
         //"WebServicePassword": "change-me",
