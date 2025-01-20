@@ -62,6 +62,7 @@
 
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
+            ["post", "^/tools/count-resources$", "all|view"],
             ["get" , "^/(patients|studies|series|instances)(|/)", "all|view"],
             ["get" , "^/statistics$", "all|view"],
             ["get" , "^/changes$", "all|view"],

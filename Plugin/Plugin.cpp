@@ -687,9 +687,12 @@ void GetStudyOrthancIdFromStudyInstanceUID(std::vector<std::string>& studyOrthan
   }
 }
 
-void ToolsFind(OrthancPluginRestOutput* output,
-               const char* /*url*/,
-               const OrthancPluginHttpRequest* request)
+
+
+void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
+                               const char* /*url*/,
+                               const OrthancPluginHttpRequest* request,
+                               const char* nativeUrl)
 {
   OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
 
@@ -793,7 +796,7 @@ void ToolsFind(OrthancPluginRestOutput* output,
 
       Json::Value result;
 
-      if (OrthancPlugins::RestApiPost(result, "/tools/find", query, false))
+      if (OrthancPlugins::RestApiPost(result, nativeUrl, query, false))
       {
         OrthancPlugins::AnswerJson(result, output);
       }
@@ -814,6 +817,20 @@ void ToolsFind(OrthancPluginRestOutput* output,
     }
   }
 
+}
+
+void ToolsFind(OrthancPluginRestOutput* output,
+               const char* url,
+               const OrthancPluginHttpRequest* request)
+{
+  ToolsFindOrCountResources(output, url, request, "/tools/find");
+}
+
+void ToolsCountResources(OrthancPluginRestOutput* output,
+                         const char* url,
+                         const OrthancPluginHttpRequest* request)
+{
+  ToolsFindOrCountResources(output, url, request, "/tools/count-resources");
 }
 
 void ToolsLabels(OrthancPluginRestOutput* output,
@@ -1495,6 +1512,7 @@ extern "C"
         {
           OrthancPlugins::RegisterRestCallback<GetUserProfile>("/auth/user/profile", true);
           OrthancPlugins::RegisterRestCallback<ToolsFind>("/tools/find", true);
+          OrthancPlugins::RegisterRestCallback<ToolsCountResources>("/tools/count-resources", true);
           OrthancPlugins::RegisterRestCallback<ToolsLabels>("/tools/labels", true);
           OrthancPlugins::RegisterRestCallback<AuthSettingsRoles>("/auth/settings/roles", true);
           OrthancPlugins::RegisterRestCallback<GetPermissionList>("/auth/settings/permissions", true);
