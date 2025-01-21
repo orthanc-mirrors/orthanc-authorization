@@ -4,6 +4,8 @@ Pending changes in the mainline
 * Fix forbidden access when the PatientID and StudyInstanceUID are identical.
 * Fix an error when WebServiceSettingsRolesUrl is not defined.
 * Now handling /tools/count-resources API route.
+* New standard configuration "volview" although Volview is not yet ready to support
+  the token: https://github.com/Kitware/VolView/issues/689
 
 
 2024-07-03 - v 0.8.1

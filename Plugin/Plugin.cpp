@@ -1420,6 +1420,15 @@ extern "C"
           if (standardConfigurations.find("ohif") != standardConfigurations.end())
           {
             uncheckedFolders_.push_back("/ohif/");
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
+          }
+
+          if (standardConfigurations.find("volview") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/volview/");
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
           }
 
         }
