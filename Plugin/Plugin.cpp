@@ -1534,10 +1534,11 @@ extern "C"
 
         if (resourceTokensEnabled_ || userTokensEnabled_)
         {
-          if (hasBasicAuthEnabled)
-          {
-            throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: you are using the plugin to grant access to resources or handle user permissions.  This is not compatible with \"AuthenticationEnabled\" = true");
-          }
+          // Disabled because of this: https://discourse.orthanc-server.org/t/user-based-access-control-with-label-based-resource-access/5454
+          // if (hasBasicAuthEnabled)
+          // {
+          //   throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "Authorization plugin: you are using the plugin to grant access to resources or handle user permissions.  This is not compatible with \"AuthenticationEnabled\" = true");
+          // }
 
           LOG(WARNING) << "Authorization plugin: Registering Incoming HTTP Request Filter";
 

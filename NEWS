@@ -1,3 +1,10 @@
+Pending changes in the mainline
+===============================
+
+* Allow using the auth-plugin together with "AuthenticationEnabled": true.
+  https://discourse.orthanc-server.org/t/user-based-access-control-with-label-based-resource-access/5454
+  
+
 2025-01-22 - v 0.8.2
 ====================
 
