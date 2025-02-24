@@ -3,7 +3,9 @@ Pending changes in the mainline
 
 * Allow using the auth-plugin together with "AuthenticationEnabled": true.
   https://discourse.orthanc-server.org/t/user-based-access-control-with-label-based-resource-access/5454
-  
+* Added a default permission for /auth/tokens/volview-viewer-publication
+* New standard configuration "volview"
+
 
 2025-01-22 - v 0.8.2
 ====================
