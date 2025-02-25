@@ -687,6 +687,45 @@ void GetStudyOrthancIdFromStudyInstanceUID(std::vector<std::string>& studyOrthan
   }
 }
 
+void FilterAuthorizedLabels(Json::Value& labels, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  if (HasAccessToAllLabels(profile))
+  {
+    return;
+  }
+  else
+  {
+    std::set<std::string> inLabelsSet;
+    std::set<std::string> outLabelsSet;
+
+    Orthanc::SerializationToolbox::ReadSetOfStrings(inLabelsSet, labels);
+
+    Orthanc::Toolbox::GetIntersection(outLabelsSet, inLabelsSet, profile.authorizedLabels);
+
+    Orthanc::SerializationToolbox::WriteSetOfStrings(labels, outLabelsSet);
+  }
+}
+
+
+void FilterLabelsInResourceObject(Json::Value& resource, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  if (resource.isMember("Labels"))
+  {
+    FilterAuthorizedLabels(resource["Labels"], profile);
+  }
+}
+
+
+void FilterLabelsInResourceArray(Json::Value& resources, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
+{
+  for (Json::ArrayIndex i = 0; i < resources.size(); ++i)
+  {
+    if (resources[i].isObject())
+    {
+      FilterLabelsInResourceObject(resources[i], profile);
+    }
+  }
+}
 
 
 void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
@@ -798,6 +837,7 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
 
       if (OrthancPlugins::RestApiPost(result, nativeUrl, query, false))
       {
+        FilterLabelsInResourceArray(result, profile);
         OrthancPlugins::AnswerJson(result, output);
       }
 
@@ -816,7 +856,6 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
       throw;
     }
   }
-
 }
 
 void ToolsFind(OrthancPluginRestOutput* output,
@@ -847,7 +886,7 @@ void ToolsLabels(OrthancPluginRestOutput* output,
     }
     else
     {
-      // The filtering to this route is performed by this plugin as it is done for any other route before we get here.
+      // The filtering to this route is performed by this plugin as it is done for any other route before we get here
 
       // If the logged in user has restrictions on the labels he can access, modify the tools/labels response before answering
       OrthancPlugins::IAuthorizationService::UserProfile profile;
@@ -863,19 +902,9 @@ void ToolsLabels(OrthancPluginRestOutput* output,
         Json::Value jsonLabels;
         if (OrthancPlugins::RestApiGet(jsonLabels, "/tools/labels", false))
         {
-          std::set<std::string> allLabels;
-          Orthanc::SerializationToolbox::ReadSetOfStrings(allLabels, jsonLabels);
-
-          if (!HasAccessToAllLabels(profile))
-          {
-            std::set<std::string> authorizedLabels;
-
-            Orthanc::Toolbox::GetIntersection(authorizedLabels, allLabels, profile.authorizedLabels);
-            Orthanc::SerializationToolbox::WriteSetOfStrings(jsonLabels, authorizedLabels);
-          }
+          FilterAuthorizedLabels(jsonLabels, profile);
           OrthancPlugins::AnswerJson(jsonLabels, output);
         }
-
       }
       else
       {
@@ -895,6 +924,73 @@ void ToolsLabels(OrthancPluginRestOutput* output,
       throw;
     }
   }
+}
+
+typedef void (*JsonLabelsFilter) (Json::Value& labels, 
+                                  const OrthancPlugins::IAuthorizationService::UserProfile& profile);
+
+
+// calls the core api and filter the "Labels" in the response
+void FilterLabelsFromGetCoreUrl(OrthancPluginRestOutput* output,
+                                const char* url,
+                                const OrthancPluginHttpRequest* request,
+                                JsonLabelsFilter jsonLabelsFilter)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Get)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+  }
+  else
+  {
+    // The filtering to this route is performed by this plugin as it is done for any other route before we get here so we don't care about authorization here.
+
+    // If the logged in user has restrictions on the labels he can access, modify the "Labels" field in the response before answering
+    OrthancPlugins::IAuthorizationService::UserProfile profile;
+    GetUserProfileInternal(profile, request);
+
+    Json::Value response;
+
+    OrthancPlugins::HttpHeaders headers;
+    OrthancPlugins::GetHttpHeaders(headers, request);
+    std::string getArguments;
+    OrthancPlugins::SerializeGetArguments(getArguments, request);
+
+    std::string coreUrl = url;
+    if (!getArguments.empty())
+    {
+      coreUrl += "?" + getArguments;
+    }
+
+    if (OrthancPlugins::RestApiGet(response, coreUrl, headers, false))
+    {
+      jsonLabelsFilter(response, profile);
+      OrthancPlugins::AnswerJson(response, output);
+    }
+  }
+}
+
+
+void FilterLabelsFromSingleResource(OrthancPluginRestOutput* output,
+                                    const char* url,
+                                    const OrthancPluginHttpRequest* request)
+{
+  FilterLabelsFromGetCoreUrl(output, url, request, FilterLabelsInResourceObject);
+}
+
+void FilterLabelsFromResourceList(OrthancPluginRestOutput* output,
+                                    const char* url,
+                                    const OrthancPluginHttpRequest* request)
+{
+  FilterLabelsFromGetCoreUrl(output, url, request, FilterLabelsInResourceArray);
+}
+
+void FilterLabelsFromResourceLabels(OrthancPluginRestOutput* output,
+                                    const char* url,
+                                    const OrthancPluginHttpRequest* request)
+{
+  FilterLabelsFromGetCoreUrl(output, url, request, FilterAuthorizedLabels);
 }
 
 
@@ -1532,6 +1628,29 @@ extern "C"
           OrthancPlugins::RegisterRestCallback<ToolsLabels>("/tools/labels", true);
           OrthancPlugins::RegisterRestCallback<AuthSettingsRoles>("/auth/settings/roles", true);
           OrthancPlugins::RegisterRestCallback<GetPermissionList>("/auth/settings/permissions", true);
+
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/series/([^/]*)", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/studies/([^/]*)", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/patients/([^/]*)", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/patient", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/study", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/series", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/series/([^/]*)/patient", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/series/([^/]*)/study", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/studies/([^/]*)/patient", true);
+
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceLabels>("/instances/([^/]*)/labels", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceLabels>("/series/([^/]*)/labels", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceLabels>("/studies/([^/]*)/labels", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceLabels>("/patients/([^/]*)/labels", true);
+
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/series/([^/]*)/instances", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/studies/([^/]*)/instances", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/studies/([^/]*)/series", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/instances", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/series", true);
+          OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/studies", true);
         }
 
         if (!urlTokenCreationBase.empty())
