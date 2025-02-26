@@ -940,7 +940,8 @@ void FilterLabelsFromGetCoreUrl(OrthancPluginRestOutput* output,
 
   if (request->method != OrthancPluginHttpMethod_Get)
   {
-    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+    OrthancPlugins::RestApiClient coreApi(url, request);
+    coreApi.Forward(context, output);
   }
   else
   {
@@ -952,18 +953,9 @@ void FilterLabelsFromGetCoreUrl(OrthancPluginRestOutput* output,
 
     Json::Value response;
 
-    OrthancPlugins::HttpHeaders headers;
-    OrthancPlugins::GetHttpHeaders(headers, request);
-    std::string getArguments;
-    OrthancPlugins::SerializeGetArguments(getArguments, request);
+    OrthancPlugins::RestApiClient coreApi(url, request);
 
-    std::string coreUrl = url;
-    if (!getArguments.empty())
-    {
-      coreUrl += "?" + getArguments;
-    }
-
-    if (OrthancPlugins::RestApiGet(response, coreUrl, headers, false))
+    if (coreApi.Execute() && coreApi.GetAnswerJson(response))
     {
       jsonLabelsFilter(response, profile);
       OrthancPlugins::AnswerJson(response, output);
