@@ -731,7 +731,8 @@ void FilterLabelsInResourceArray(Json::Value& resources, const OrthancPlugins::I
 void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
                                const char* /*url*/,
                                const OrthancPluginHttpRequest* request,
-                               const char* nativeUrl)
+                               const char* nativeUrl,
+                               bool filterLabelsInResponse)
 {
   OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
 
@@ -837,7 +838,10 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
 
       if (OrthancPlugins::RestApiPost(result, nativeUrl, query, false))
       {
-        FilterLabelsInResourceArray(result, profile);
+        if (filterLabelsInResponse)
+        {
+          FilterLabelsInResourceArray(result, profile);
+        }
         OrthancPlugins::AnswerJson(result, output);
       }
 
@@ -862,14 +866,14 @@ void ToolsFind(OrthancPluginRestOutput* output,
                const char* url,
                const OrthancPluginHttpRequest* request)
 {
-  ToolsFindOrCountResources(output, url, request, "/tools/find");
+  ToolsFindOrCountResources(output, url, request, "/tools/find", true);
 }
 
 void ToolsCountResources(OrthancPluginRestOutput* output,
                          const char* url,
                          const OrthancPluginHttpRequest* request)
 {
-  ToolsFindOrCountResources(output, url, request, "/tools/count-resources");
+  ToolsFindOrCountResources(output, url, request, "/tools/count-resources", false);
 }
 
 void ToolsLabels(OrthancPluginRestOutput* output,

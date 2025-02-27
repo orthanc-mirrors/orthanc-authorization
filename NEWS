@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2025-02-27 - v 0.9.0
+====================
 
 * The plugin now filters out all unauthorized labels from the "Labels" fields
   in the responses of these API routes:
