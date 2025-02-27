@@ -393,7 +393,7 @@ namespace OrthancPlugins
         authClient.SetCredentials(username_, password_);
       }
       authClient.SetBody(bodyAsString);
-      authClient.SetMethod(OrthancPluginHttpMethod_Put);
+      authClient.SetMethod(OrthancPluginHttpMethod_Post);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
