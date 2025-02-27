@@ -1,3 +1,11 @@
+Pending changes in the mainline
+===============================
+
+* The plugin is now using the HttpClient from the Orthanc core instead of its
+  own HttpClient which should enable support for https since the plugin
+  is not built with SSL support.
+
+
 2025-02-27 - v 0.9.0
 ====================
 

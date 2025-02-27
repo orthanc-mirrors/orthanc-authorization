@@ -24,7 +24,6 @@
 
 #include <Logging.h>
 #include <Toolbox.h>
-#include <HttpClient.h>
 #include <algorithm>
 #include "SerializationToolbox.h"
 
@@ -99,20 +98,17 @@ namespace OrthancPlugins
       Orthanc::SerializationToolbox::WriteSetOfStrings(body, access.GetLabels(), "labels");
     }
 
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
-
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
 
-    Orthanc::HttpClient authClient(authWebservice, "");
+    HttpClient authClient;
     authClient.SetUrl(tokenValidationUrl_);
-    authClient.AssignBody(bodyAsString);
-    authClient.SetMethod(Orthanc::HttpMethod_Post);
+    if (!username_.empty())
+    {
+      authClient.SetCredentials(username_, password_);
+    }
+    authClient.SetBody(bodyAsString);
+    authClient.SetMethod(OrthancPluginHttpMethod_Post);
     authClient.AddHeader("Content-Type", "application/json");
     authClient.AddHeader("Expect", "");
     authClient.SetTimeout(10);
@@ -132,7 +128,8 @@ namespace OrthancPlugins
     }
       
     Json::Value answer;
-    authClient.ApplyAndThrowException(answer);
+    OrthancPlugins::HttpHeaders answerHeaders;
+    authClient.Execute(answerHeaders, answer);
 
     if (answer.type() != Json::objectValue ||
         !answer.isMember(GRANTED) ||
@@ -182,12 +179,6 @@ namespace OrthancPlugins
     {
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not create tokens if the 'WebServiceTokenValidationUrl' is not configured");
     }
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
 
     Json::Value body;
 
@@ -200,15 +191,20 @@ namespace OrthancPlugins
     Json::Value tokenResponse;
     try
     {
-      Orthanc::HttpClient authClient(authWebservice, "");
+      HttpClient authClient;
       authClient.SetUrl(tokenDecoderUrl_);
-      authClient.AssignBody(bodyAsString);
-      authClient.SetMethod(Orthanc::HttpMethod_Post);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Post);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
-      authClient.ApplyAndThrowException(tokenResponse);
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, tokenResponse);
 
       if (tokenResponse.isMember("redirect-url"))
       {
@@ -246,13 +242,6 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not create tokens if the 'WebServiceTokenCreationBaseUrl' is not configured");
     }
     std::string url = Orthanc::Toolbox::JoinUri(tokenCreationBaseUrl_, tokenType);
-
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
 
     Json::Value body;
 
@@ -301,15 +290,20 @@ namespace OrthancPlugins
     Json::Value tokenResponse;
     try
     {
-      Orthanc::HttpClient authClient(authWebservice, "");
+      HttpClient authClient;
       authClient.SetUrl(url);
-      authClient.AssignBody(bodyAsString);
-      authClient.SetMethod(Orthanc::HttpMethod_Put);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Put);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
-      authClient.ApplyAndThrowException(tokenResponse);
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, tokenResponse);
 
       response.token = tokenResponse["token"].asString();
       response.url = tokenResponse["url"].asString();
@@ -370,13 +364,6 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get user profile if the 'WebServiceUserProfileUrl' is not configured");
     }
 
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
-
     Json::Value body;
 
     if (token != NULL)
@@ -399,16 +386,21 @@ namespace OrthancPlugins
 
     try
     {
-      Orthanc::HttpClient authClient(authWebservice, "");
+      HttpClient authClient;
       authClient.SetUrl(userProfileUrl_);
-      authClient.AssignBody(bodyAsString);
-      authClient.SetMethod(Orthanc::HttpMethod_Post);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Put);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
       Json::Value jsonProfile;
-      authClient.ApplyAndThrowException(jsonProfile);
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, jsonProfile);
 
       if (!jsonProfile.isMember(VALIDITY) ||
         jsonProfile[VALIDITY].type() != Json::intValue)
@@ -460,22 +452,20 @@ namespace OrthancPlugins
       return false;
     }
 
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
-
     try
     {
-      Orthanc::HttpClient authClient(authWebservice, "");
+      HttpClient authClient;
       authClient.SetUrl(settingsRolesUrl_);
-      authClient.SetMethod(Orthanc::HttpMethod_Get);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetMethod(OrthancPluginHttpMethod_Get);
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
-      authClient.ApplyAndThrowException(roles);
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, roles);
 
       return true;
     }
@@ -493,27 +483,25 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not update settings-roles if the 'WebServiceSettingsRolesUrl' is not configured");
     }
 
-    Orthanc::WebServiceParameters authWebservice;
-
-    if (!username_.empty())
-    {
-      authWebservice.SetCredentials(username_, password_);
-    }
-
     try
     {
       std::string bodyAsString;
       Orthanc::Toolbox::WriteFastJson(bodyAsString, roles);
 
-      Orthanc::HttpClient authClient(authWebservice, "");
+      HttpClient authClient;
       authClient.SetUrl(settingsRolesUrl_);
-      authClient.AssignBody(bodyAsString);
-      authClient.SetMethod(Orthanc::HttpMethod_Put);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Put);
       authClient.AddHeader("Content-Type", "application/json");
       authClient.AddHeader("Expect", "");
       authClient.SetTimeout(10);
 
-      authClient.ApplyAndThrowException(response);
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, response);
 
       return true;
     }

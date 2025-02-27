@@ -32,7 +32,7 @@ else()
 endif()
 
 # Parameters of the build
-set(STATIC_BUILD OFF CACHE BOOL "Static build of the third-party libraries (necessary for Windows)")
+set(STATIC_BUILD ON CACHE BOOL "Static build of the third-party libraries (necessary for Windows)")
 set(ALLOW_DOWNLOADS OFF CACHE BOOL "Allow CMake to download packages")
 set(ORTHANC_FRAMEWORK_SOURCE "${ORTHANC_FRAMEWORK_DEFAULT_SOURCE}" CACHE STRING "Source of the Orthanc source code (can be \"hg\", \"archive\", \"web\" or \"path\")")
 set(ORTHANC_FRAMEWORK_ARCHIVE "" CACHE STRING "Path to the Orthanc archive, if ORTHANC_FRAMEWORK_SOURCE is \"archive\"")
@@ -73,7 +73,7 @@ else()
   set(ENABLE_MODULE_JOBS OFF)
   set(ENABLE_MODULE_DICOM OFF)
   set(ENABLE_WEB_CLIENT ON)
-
+  
   include(${ORTHANC_FRAMEWORK_ROOT}/../Resources/CMake/OrthancFrameworkConfiguration.cmake)
   include_directories(${ORTHANC_FRAMEWORK_ROOT})
 endif()
