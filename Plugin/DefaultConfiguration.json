@@ -85,6 +85,7 @@
             // uploads
             ["post", "^/instances$", "all|upload"],
             ["post" , "^/DICOM_WEB_ROOT/studies$", "all|upload"],
+            ["post" , "^/DICOM_WEB_ROOT/studies/([.0-9]+)", "all|upload"],  // note: the user also needs to have access to the specific study
             ["post", "^/tools/create-dicom$", "all|upload"],
             ["post", "^/stl/encode-rtstruct$", "all|upload"],
             ["post", "^/stl/encode-nifti$", "all|upload"],
