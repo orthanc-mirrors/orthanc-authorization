@@ -1,5 +1,5 @@
-Pending changes in the mainline
-===============================
+2025-04-01 - v 0.9.1
+====================
 
 * The plugin is now using the HttpClient from the Orthanc core instead of its
   own HttpClient which should enable support for https since the plugin
