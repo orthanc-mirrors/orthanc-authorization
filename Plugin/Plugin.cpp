@@ -621,7 +621,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
 
           if (newLabelsToFind.size() == 0)
           {
-            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'All' labels constraint when none of the labels to find is authorized for the user.");                
+            throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'Any' labels constraint when none of the labels to find is authorized for the user.");                
           }
 
           query.removeMember("Labels");
@@ -632,7 +632,7 @@ void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAutho
       {
         if (profile.authorizedLabels.size() > 0)
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'None' labels constraint when the user only has authorized_labels.");
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to transform tools/find query with 'None' labels constraint.");
         }
       }
     }
