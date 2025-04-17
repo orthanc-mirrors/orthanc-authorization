@@ -197,7 +197,7 @@ namespace OrthancPlugins
         sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "SOPInstanceUID", "");
       }
 
-      patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "00100010", "");
+      patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "00100020", "");
       if (patientId.empty())
       {
         patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "PatientID", "");
