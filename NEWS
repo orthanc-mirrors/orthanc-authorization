@@ -1,6 +1,10 @@
 Pending changes
 ===============
 
+* When calling /dicom-web/studies with a resource token when no StudyInstanceUID 
+  is specified in the query args, the plugin now returns an empty list of resources
+  instead of returning a 403.  This notably prevents OHIF to display errors when requesting 
+  prior studies while still preserving the security since no resources are returned.
 * Added support for /dicom-web/studies/../thumbnail.
 
 

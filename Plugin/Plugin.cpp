@@ -426,6 +426,14 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       {
         return 1;
       }
+
+      // Calling one of this "search" uri with a resource-token is authorized (since we override these routes in this plugin) but
+      // the results will be empty.  We want to avoid 403 errors in OHIF when requesting prior studies.
+      // TODO: In the future, we shall be able to return the studies that are authorized by the resource-token.
+      if (strcmp(uri, "/dicom-web/studies") == 0 && method == OrthancPluginHttpMethod_Get)
+      {
+        return 1;
+      }
     }
       
     // By default, forbid access to all the resources
@@ -808,10 +816,17 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
 
         // If anonymous user profile, it might be a resource token e.g accessing /dicom-web/studies/.../metadata 
         // -> extract the StudyInstanceUID from the query and send the token for validation to the auth-service
-        // If there is no StudyInstanceUID, then, return a 403 because we don't know what resource it relates to
+        // If there is no StudyInstanceUID, then, return an empty list
         if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
         {
-          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
+          // If there is no StudyInstaceUID, this might still be a call to /dicom-web/studies?PatientID=... e.g. from OHIF
+          // in this case, let's return an empty list.  TODO: in the future, we may get the StudyInstanceUIDs from the resource token and
+          // "add" &StudyInstanceUID=1.2|1.3|1.4 in the query if there are multiple studies in the resource token
+          Json::Value emptyArray = Json::arrayValue;
+          OrthancPlugins::AnswerJson(emptyArray, output);
+          return;
+
+          // old code prior to 0.9.2: throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
         }
 
         std::vector<std::string> studyOrthancIds;
