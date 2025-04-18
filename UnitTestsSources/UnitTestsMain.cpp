@@ -302,7 +302,7 @@ TEST(DefaultAuthorizationParser, Parse)
   }
   {
     accesses.clear();
-    const char* getKeys[] = {"00100010"};
+    const char* getKeys[] = {"00100020"};
     const char* getValues[] = {"PATIENT.1"};
     AssociativeArray getArguments(1, getKeys, getValues, false);
     parser.Parse(accesses, "/dicom-web/studies", getArguments.GetMap());
