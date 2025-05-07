@@ -40,7 +40,7 @@ set(ORTHANC_FRAMEWORK_ROOT "" CACHE STRING "Path to the Orthanc source directory
 
 # Advanced parameters to fine-tune linking against system libraries
 set(USE_SYSTEM_ORTHANC_SDK ON CACHE BOOL "Use the system version of the Orthanc plugin SDK")
-set(ORTHANC_SDK_VERSION "1.11.3" CACHE STRING "Version of the Orthanc plugin SDK to use, if not using the system version (can be \"1.3.1\" \"1.11.3\")")
+set(ORTHANC_SDK_VERSION "1.12.4" CACHE STRING "Version of the Orthanc plugin SDK to use, if not using the system version (can be \"1.11.3\" \"1.12.4\")")
 
 # Download and setup the Orthanc framework
 include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/CMake/DownloadOrthancFramework.cmake)
@@ -84,10 +84,10 @@ include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Plugins/OrthancPluginsExports.cmak
 
 # Check that the Orthanc SDK headers are available
 if (STATIC_BUILD OR NOT USE_SYSTEM_ORTHANC_SDK)
-  if (ORTHANC_SDK_VERSION STREQUAL "1.3.1")
-    include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.3.1)
-  elseif (ORTHANC_SDK_VERSION STREQUAL "1.11.3")
+  if (ORTHANC_SDK_VERSION STREQUAL "1.11.3")
     include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.11.3)
+  elseif (ORTHANC_SDK_VERSION STREQUAL "1.12.4")
+    include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.12.4)
   else()
     message(FATAL_ERROR "Unsupported version of the Orthanc plugin SDK: ${ORTHANC_SDK_VERSION}")
   endif()

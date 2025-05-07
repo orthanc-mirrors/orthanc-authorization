@@ -1286,7 +1286,7 @@ extern "C"
 {
   ORTHANC_PLUGINS_API int32_t OrthancPluginInitialize(OrthancPluginContext* context)
   {
-    OrthancPlugins::SetGlobalContext(context);
+    OrthancPlugins::SetGlobalContext(context, ORTHANC_PLUGIN_NAME);
     OrthancPluginLogWarning(context, "Initializing the authorization plugin");
 
     /* Check the version of the Orthanc core */
