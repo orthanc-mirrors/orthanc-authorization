@@ -99,6 +99,8 @@
             ["post", "^/modalities/(.*)/echo$", "all|send|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/query$", "all|q-r-remote-modalities"],
             ["get", "^/queries/([a-f0-9-]+)/answers$", "all|q-r-remote-modalities"],
+            ["get", "^/queries/([a-f0-9-]+)/answers/([0-9]+)/content$", "all|q-r-remote-modalities"],
+            ["post", "^/queries/([a-f0-9-]+)/answers/([0-9]+)/retrieve$", "all|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
