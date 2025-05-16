@@ -103,7 +103,7 @@
             ["post", "^/queries/([a-f0-9-]+)/answers/([0-9]+)/retrieve$", "all|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
-            ["get" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
+            ["post" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
 
             // DICOMWeb QIDO-RS            
             ["get" , "^/DICOM_WEB_ROOT/(studies|series|instances)(|/)$", "all|view"],

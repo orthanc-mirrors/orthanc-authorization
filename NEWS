@@ -7,7 +7,7 @@ Pending changes in the mainline
 
 * New default permissions to Q&R remote modalities
 * Maintenance: Use Orthanc SDK 1.12.4 by default to benefit from more detailed logging.
-
+* Fix default permission for /dicom-web/servers/../stow
 
 2025-04-29 - v 0.9.2
 ====================
