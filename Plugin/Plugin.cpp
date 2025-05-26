@@ -841,7 +841,7 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
                 LOG(WARNING) << "Auth plugin: adding StudyInstanceUID constrains based on the resources/dicom-uid in the token.";
                 // LOG(INFO) << joinedStudyInstanceUids;
 
-                query["StudyInstanceUID"] = joinedStudyInstanceUids;
+                query["Query"]["StudyInstanceUID"] = joinedStudyInstanceUids;
 
                 Json::Value result;
                 if (OrthancPlugins::RestApiPost(result, nativeUrl, query, false))
@@ -850,6 +850,10 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
                   return;
                 }
               }
+            }
+            else
+            {
+              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query and the auth-service does not implement /tokens/decode.");
             }
           }
 
