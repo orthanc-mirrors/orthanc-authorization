@@ -221,6 +221,24 @@ namespace OrthancPlugins
         response.tokenType = tokenResponse["token-type"].asString();
       }
 
+      // LOG(INFO) << tokenResponse.toStyledString();
+      
+      if (tokenResponse.isMember("resources") && tokenResponse["resources"].isArray())
+      {
+        for (Json::ArrayIndex i = 0; i < tokenResponse["resources"].size(); ++i)
+        {
+          const Json::Value& resource = tokenResponse["resources"][i];
+          if (resource.isMember("dicom-uid") && resource["dicom-uid"].isString() && !resource["dicom-uid"].asString().empty() )
+          {
+            response.resourcesDicomIds.insert(resource["dicom-uid"].asString());
+          }
+          if (resource.isMember("orthanc-id") && resource["orthanc-id"].isString() && !resource["orthanc-id"].asString().empty() )
+          {
+            response.resourcesOrthancIds.insert(resource["orthanc-id"].asString());
+          }
+        }
+      }
+
       return true;
     }
     catch (Orthanc::OrthancException& ex)

@@ -820,13 +820,41 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
         if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
         {
           // If there is no StudyInstaceUID, this might still be a call to /dicom-web/studies?PatientID=... e.g. from OHIF
-          // in this case, let's return an empty list.  TODO: in the future, we may get the StudyInstanceUIDs from the resource token and
+          // in this case, let's complement the query to filter against the StudyInstanceUIDs from the resource token and
           // "add" &StudyInstanceUID=1.2|1.3|1.4 in the query if there are multiple studies in the resource token
-          Json::Value emptyArray = Json::arrayValue;
-          OrthancPlugins::AnswerJson(emptyArray, output);
-          return;
 
-          // old code prior to 0.9.2: throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query.");
+          std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
+          GetAuthTokens(authTokens, request->headersCount, request->headersKeys, request->headersValues, request->getCount, request->getKeys, request->getValues);
+
+          for (std::vector<TokenAndValue>::const_iterator it = authTokens.begin(); it != authTokens.end(); ++it)
+          {
+            OrthancPlugins::IAuthorizationService::DecodedToken decodedToken;
+            if (authorizationService_->DecodeToken(decodedToken,
+                                                   it->GetToken().GetKey(),
+                                                   it->GetValue()))
+            {
+              if (decodedToken.resourcesDicomIds.size() > 0)
+              {
+                std::string joinedStudyInstanceUids;
+                Orthanc::Toolbox::JoinStrings(joinedStudyInstanceUids, decodedToken.resourcesDicomIds, "|");
+                
+                LOG(WARNING) << "Auth plugin: adding StudyInstanceUID constrains based on the resources/dicom-uid in the token.";
+                // LOG(INFO) << joinedStudyInstanceUids;
+
+                query["StudyInstanceUID"] = joinedStudyInstanceUids;
+
+                Json::Value result;
+                if (OrthancPlugins::RestApiPost(result, nativeUrl, query, false))
+                {
+                  OrthancPlugins::AnswerJson(result, output);
+                  return;
+                }
+              }
+            }
+          }
+
+          // old code prior to 0.9.2: 
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find when the user does not have access to any labels and if there is no StudyInstanceUID in the query or in the resource token.");
         }
 
         std::vector<std::string> studyOrthancIds;

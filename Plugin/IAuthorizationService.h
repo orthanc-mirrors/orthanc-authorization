@@ -53,6 +53,9 @@ namespace OrthancPlugins
       std::string redirectUrl;
       std::string errorCode;
       std::string tokenType;
+
+      std::set<std::string> resourcesDicomIds;
+      std::set<std::string> resourcesOrthancIds; 
     };
 
     struct UserProfile
