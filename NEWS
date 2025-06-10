@@ -6,6 +6,9 @@ Pending changes in the mainline
 => Minimum SDK version: 1.11.3 <=
 
 * New default permissions to Q&R remote modalities
+* The /tokens/decode route now returns 2 additionnal fields:
+  "ResourcesDicomIds" and "ResourcesOrthancIds".
+  This will only work if the authorization service returns a "resources" field to the /tokens/decode route.
 * Maintenance: Use Orthanc SDK 1.12.4 by default to benefit from more detailed logging.
 * Fix default permission for /dicom-web/servers/../stow
 * When calling /dicom-web/studies with a resource token when no StudyInstanceUID 

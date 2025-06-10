@@ -1182,6 +1182,18 @@ void DecodeToken(OrthancPluginRestOutput* output,
         decodedJsonToken["TokenType"] = decodedToken.tokenType;
       }
 
+      decodedJsonToken["ResourcesDicomIds"] = Json::arrayValue;
+      for (std::set<std::string>::const_iterator it = decodedToken.resourcesDicomIds.begin(); it != decodedToken.resourcesDicomIds.end(); ++it)
+      {
+        decodedJsonToken["ResourcesDicomIds"].append(*it);
+      }
+
+      decodedJsonToken["ResourcesOrthancIds"] = Json::arrayValue;
+      for (std::set<std::string>::const_iterator it = decodedToken.resourcesOrthancIds.begin(); it != decodedToken.resourcesOrthancIds.end(); ++it)
+      {
+        decodedJsonToken["ResourcesOrthancIds"].append(*it);
+      }
+
       OrthancPlugins::AnswerJson(decodedJsonToken, output);
     }
   }
