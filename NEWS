@@ -1,3 +1,18 @@
+Pending changes in the mainline
+===============================
+
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.4 <=
+=> Minimum SDK version: 1.11.3 <=
+
+* New configuration "ExtraPermissions" to ADD new permissions to
+  the default "Permissions" entries.
+* Improved handling of "Anonymous" user profiles (when no auth-tokens
+  are provided):  The plugin will now request the auth-service to
+  get an anonymous user profile even if there are no auth-tokens in the
+  HTTP request.
+
+
 2025-06-11 - v 0.9.3
 ====================
 

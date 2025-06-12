@@ -102,25 +102,5 @@ namespace OrthancPlugins
       return false;
     }
 
-    virtual bool HasAnonymousUserPermission(unsigned int& validity /* out */,
-                                            const std::set<std::string>& anyOfPermissions) ORTHANC_OVERRIDE
-    {
-      if (anyOfPermissions.size() == 0)
-      {
-        return true;
-      }
-
-      UserProfile anonymousUserProfile;
-      anonymousUserProfile.tokenType = TokenType_None;
-
-      for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
-      {
-        if (HasUserPermissionInternal(validity, *it, anonymousUserProfile))
-        {
-          return true;
-        }
-      }
-      return false;
-    }
   };
 }

@@ -273,6 +273,47 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
   return false;
 }
 
+static bool TestRequiredPermissions(bool& hasUserRequiredPermissions, 
+                                    const std::set<std::string>& requiredPermissions, 
+                                    const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                    const std::string& msg, 
+                                    const char* uri,
+                                    OrthancPluginHttpMethod method,
+                                    const OrthancPlugins::AssociativeArray& getArguments
+                                    )
+{
+  unsigned int validity;  // ignored
+  if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
+  {
+    LOG(INFO) << msg << " -> granted";
+    hasUserRequiredPermissions = true;
+
+    // check labels permissions
+    std::string msg2 = std::string("Testing whether user has the authorized_labels to access '") + uri + "'";
+
+    bool hasAuthorizedLabelsForResource = false;
+    if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, method, getArguments, profile))
+    {
+      if (hasAuthorizedLabelsForResource)
+      {
+        LOG(INFO) << msg2 << " -> granted";
+      }
+      else
+      {
+        LOG(INFO) << msg2 << " -> not granted";
+        return false; // the labels for this resource prevents access -> stop checking now !
+      }
+    }
+  }
+  else
+  {
+    LOG(INFO) << msg << " -> not granted";
+    hasUserRequiredPermissions = false;
+  }
+  
+  return true;
+}
+
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
                                   const char *ip,
@@ -323,22 +364,19 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       {
         if (authTokens.empty())
         {
-          std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
-          
-          LOG(INFO) << msg; 
+          std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "' required to match '" + matchedPattern + "'";
 
-          unsigned int validity;  // ignored
-          if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
+          OrthancPlugins::IAuthorizationService::UserProfile anonymousProfile;
+          unsigned int validityNotUsed;
+          authorizationService_->GetUserProfile(validityNotUsed, anonymousProfile, OrthancPlugins::Token(OrthancPlugins::TokenType_None, ""), "");
+
+          LOG(INFO) << msg; 
+          if (!TestRequiredPermissions(hasUserRequiredPermissions, requiredPermissions, anonymousProfile, msg, uri, method, getArguments))
           {
-            LOG(INFO) << msg << " -> granted";
-            hasUserRequiredPermissions = true;
+            return 0; // the labels for this resource prevents access -> stop checking now !
           }
-          else
-          {
-            LOG(INFO) << msg << " -> not granted";
-            hasUserRequiredPermissions = false;
-            // continue in order to check if there is a resource token that could grant access to the resource
-          }
+
+          // continue in order to check if there is a resource token that could grant access to the resource
         }
         else
         {
@@ -346,39 +384,16 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           {
             std::string msg = std::string("Testing whether user has the required permissions '") + JoinStrings(requiredPermissions) + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "' required to match '" + matchedPattern + "'";
 
-            // LOG(INFO) << msg;
+            LOG(INFO) << msg;
             OrthancPlugins::IAuthorizationService::UserProfile profile;
             unsigned int validityNotUsed;
             authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
 
-            unsigned int validity;  // ignored
-            if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
+            if (!TestRequiredPermissions(hasUserRequiredPermissions, requiredPermissions, profile, msg, uri, method, getArguments))
             {
-              LOG(INFO) << msg << " -> granted";
-              hasUserRequiredPermissions = true;
-
-              // check labels permissions
-              msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
-
-              bool hasAuthorizedLabelsForResource = false;
-              if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, method, getArguments, profile))
-              {
-                if (hasAuthorizedLabelsForResource)
-                {
-                  LOG(INFO) << msg << " -> granted";
-                }
-                else
-                {
-                  LOG(INFO) << msg << " -> not granted";
-                  return 0; // the labels for this resource prevents access -> stop checking now !
-                }
-              }
+              return 0; // the labels for this resource prevents access -> stop checking now !
             }
-            else
-            {
-              LOG(INFO) << msg << " -> not granted";
-              hasUserRequiredPermissions = false;
-            }
+
           }
         }
       }
@@ -546,30 +561,25 @@ bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& 
     OrthancPlugins::IAuthorizationService::UserProfile tryProfile;
 
     std::string value;
-
-    bool hasValue = false;
     switch (token->GetType())
     {
       case OrthancPlugins::TokenType_HttpHeader:
-        hasValue = headers.GetValue(value, token->GetKey());
+        headers.GetValue(value, token->GetKey());
         break;
 
       case OrthancPlugins::TokenType_GetArgument:
-        hasValue = getArguments.GetValue(value, token->GetKey());
+        getArguments.GetValue(value, token->GetKey());
         break;
 
       default:
         throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
     }
     
-    if (hasValue)
+    unsigned int validity; // not used
+    if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
     {
-      unsigned int validity; // not used
-      if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
-      {
-        profile = tryProfile;
-        return true;
-      }
+      profile = tryProfile;
+      return true;
     }
   }
 
@@ -1496,6 +1506,12 @@ extern "C"
             (new OrthancPlugins::PermissionParser(dicomWebRoot, oe2Root));
 
           permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS], authorizationParser_.get());
+
+          static const char* const EXTRA_PERMISSIONS = "ExtraPermissions";
+          if (pluginConfiguration.GetJson().isMember(EXTRA_PERMISSIONS))
+          {
+            permissionParser_->Add(pluginConfiguration.GetJson()[EXTRA_PERMISSIONS], authorizationParser_.get());
+          }
         }
         else
         {
