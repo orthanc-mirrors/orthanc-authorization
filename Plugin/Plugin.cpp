@@ -285,7 +285,7 @@ static bool TestRequiredPermissions(bool& hasUserRequiredPermissions,
   unsigned int validity;  // ignored
   if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
   {
-    LOG(INFO) << msg << " -> granted";
+    LOG(INFO) << msg << " -> granted to user '" << profile.name << "'";
     hasUserRequiredPermissions = true;
 
     // check labels permissions
@@ -544,17 +544,11 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
-
-bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& profile, const OrthancPluginHttpRequest* request)
+bool GetUserProfileInternal_(OrthancPlugins::IAuthorizationService::UserProfile& profile, 
+                             const OrthancPlugins::AssociativeArray& headers,
+                             const OrthancPlugins::AssociativeArray& getArguments,
+                             bool ignoreEmptyValues)
 {
-  OrthancPlugins::AssociativeArray headers
-    (request->headersCount, request->headersKeys, request->headersValues, false);
-
-  OrthancPlugins::AssociativeArray getArguments
-    (request->getCount, request->getKeys, request->getValues, true);
-
-  // Loop over all the authorization tokens stored in the HTTP
-  // headers, until finding one that is granted
   for (std::set<OrthancPlugins::Token>::const_iterator
           token = tokens_.begin(); token != tokens_.end(); ++token)
   {
@@ -575,6 +569,11 @@ bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& 
         throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
     }
     
+    if (ignoreEmptyValues && value.empty())
+    {
+      continue;
+    }
+
     unsigned int validity; // not used
     if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
     {
@@ -584,6 +583,26 @@ bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& 
   }
 
   return false;
+}
+
+
+bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& profile, const OrthancPluginHttpRequest* request)
+{
+  OrthancPlugins::AssociativeArray headers
+    (request->headersCount, request->headersKeys, request->headersValues, false);
+
+  OrthancPlugins::AssociativeArray getArguments
+    (request->getCount, request->getKeys, request->getValues, true);
+
+  // Loop over all the authorization tokens stored in the HTTP
+  // headers, until finding one that is granted.
+  // But, first process only the tokens with a value to avoid getting identified as anonymous too fast !
+  if (GetUserProfileInternal_(profile, headers, getArguments, true))
+  {
+    return true;
+  }
+
+  return GetUserProfileInternal_(profile, headers, getArguments, false);
 }
 
 void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
