@@ -11,6 +11,8 @@ Pending changes in the mainline
   are provided):  The plugin will now request the auth-service to
   get an anonymous user profile even if there are no auth-tokens in the
   HTTP request.
+* The User profile can now contain a "groups" field if the auth-service
+  provides it.
 
 
 2025-06-11 - v 0.9.3

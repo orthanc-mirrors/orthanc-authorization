@@ -63,6 +63,7 @@ namespace OrthancPlugins
       std::string name;
       std::set<std::string> permissions;
       std::set<std::string> authorizedLabels;
+      std::set<std::string> groups;
 
       // the source token key/value that identified the user
       TokenType   tokenType;

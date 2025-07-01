@@ -1247,6 +1247,8 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       Json::Value jsonProfile;
       jsonProfile["name"] = profile.name;
       jsonProfile["permissions"] = Json::arrayValue;
+      jsonProfile["groups"] = Json::arrayValue;
+      
       for (std::set<std::string>::const_iterator it = profile.permissions.begin(); it != profile.permissions.end(); ++it)
       {
         jsonProfile["permissions"].append(*it);
@@ -1254,6 +1256,10 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       for (std::set<std::string>::const_iterator it = profile.authorizedLabels.begin(); it != profile.authorizedLabels.end(); ++it)
       {
         jsonProfile["authorized-labels"].append(*it);
+      }
+      for (std::set<std::string>::const_iterator it = profile.groups.begin(); it != profile.groups.end(); ++it)
+      {
+        jsonProfile["groups"].append(*it);
       }
 
       OrthancPlugins::AnswerJson(jsonProfile, output);

@@ -34,6 +34,8 @@ namespace OrthancPlugins
   static const char* PERMISSIONS = "permissions";
   static const char* AUTHORIZED_LABELS = "authorized-labels";
   static const char* USER_NAME = "name";
+  static const char* GROUPS = "groups";
+
   
 
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
@@ -341,6 +343,7 @@ namespace OrthancPlugins
     jsonProfile[USER_NAME] = profile.name;
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.authorizedLabels, AUTHORIZED_LABELS);
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.permissions, PERMISSIONS);
+    Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.groups, GROUPS);
   }
     
   void AuthorizationWebService::FromJson(UserProfile& profile, const Json::Value& jsonProfile)
@@ -367,6 +370,14 @@ namespace OrthancPlugins
     for (Json::ArrayIndex i = 0; i < jsonProfile[AUTHORIZED_LABELS].size(); ++i)
     {
       profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
+    }
+
+    if (jsonProfile.isMember(GROUPS) && jsonProfile[GROUPS].isArray())
+    {
+      for (Json::ArrayIndex i = 0; i < jsonProfile[GROUPS].size(); ++i)
+      {
+        profile.groups.insert(jsonProfile[GROUPS][i].asString());
+      }
     }
   }
 
