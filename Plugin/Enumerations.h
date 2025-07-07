@@ -21,6 +21,7 @@
 #pragma once
 
 #include <Enumerations.h>
+#include <orthanc/OrthancCPlugin.h>
 
 namespace OrthancPlugins
 {
@@ -46,4 +47,6 @@ namespace OrthancPlugins
   std::string EnumerationToString(AccessLevel level);
 
   AccessLevel StringToAccessLevel(const std::string& level);
+
+  OrthancPluginResourceType StringToResourceType(const char* type);
 }

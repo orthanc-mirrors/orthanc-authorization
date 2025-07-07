@@ -13,6 +13,9 @@ Pending changes in the mainline
   HTTP request.
 * The User profile can now contain a "groups" field if the auth-service
   provides it.
+* The User profile can now contain an "id" field if the auth-service
+  provides it.
+* New experimental feature: audit-logs (TODO)
 
 
 2025-06-11 - v 0.9.3

@@ -61,6 +61,7 @@ namespace OrthancPlugins
     struct UserProfile
     {
       std::string name;
+      std::string userId;
       std::set<std::string> permissions;
       std::set<std::string> authorizedLabels;
       std::set<std::string> groups;

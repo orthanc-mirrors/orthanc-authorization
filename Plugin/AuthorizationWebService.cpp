@@ -35,6 +35,7 @@ namespace OrthancPlugins
   static const char* AUTHORIZED_LABELS = "authorized-labels";
   static const char* USER_NAME = "name";
   static const char* GROUPS = "groups";
+  static const char* USER_ID = "user-id";
 
   
 
@@ -341,6 +342,7 @@ namespace OrthancPlugins
   {
     jsonProfile = Json::objectValue;
     jsonProfile[USER_NAME] = profile.name;
+    jsonProfile[USER_ID] = profile.userId;
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.authorizedLabels, AUTHORIZED_LABELS);
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.permissions, PERMISSIONS);
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.groups, GROUPS);
@@ -378,6 +380,11 @@ namespace OrthancPlugins
       {
         profile.groups.insert(jsonProfile[GROUPS][i].asString());
       }
+    }
+
+    if (jsonProfile.isMember(USER_ID) && jsonProfile[USER_ID].isString())
+    {
+      profile.userId = jsonProfile[USER_ID].asString();
     }
   }
 
