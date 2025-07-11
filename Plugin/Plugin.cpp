@@ -327,8 +327,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           
           LOG(INFO) << msg; 
 
-          unsigned int validity;  // ignored
-          if (authorizationService_->HasAnonymousUserPermission(validity, requiredPermissions))
+          if (authorizationService_->HasAnonymousUserPermission(requiredPermissions))
           {
             LOG(INFO) << msg << " -> granted";
             hasUserRequiredPermissions = true;
@@ -351,8 +350,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
             unsigned int validityNotUsed;
             authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
 
-            unsigned int validity;  // ignored
-            if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
+            if (authorizationService_->HasUserPermission(requiredPermissions, profile))
             {
               LOG(INFO) << msg << " -> granted";
               hasUserRequiredPermissions = true;

@@ -1,3 +1,17 @@
+Pending changes in the mainline
+===============================
+
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.4 <=
+=> Minimum SDK version: 1.11.3 <=
+
+* Fixed a security issue: the entries in the cache token->permissions were kept too long in the cache
+  allowing users to have access to generic routes even with an expired token.
+  These entries are now stored maximum for 10 seconds.
+  Note that the validity duration of the token->user-profile entries is determined by the auth-service;
+  typically 60 seconds.
+
+
 2025-06-11 - v 0.9.3
 ====================
 

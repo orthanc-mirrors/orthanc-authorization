@@ -446,8 +446,7 @@ namespace OrthancPlugins
     }
   }
 
-  bool AuthorizationWebService::HasUserPermissionInternal(unsigned int& validity,
-                                                          const std::string& permission,
+  bool AuthorizationWebService::HasUserPermissionInternal(const std::string& permission,
                                                           const UserProfile& profile)
   {
     const std::set<std::string>& permissions = profile.permissions;

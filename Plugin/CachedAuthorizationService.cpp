@@ -160,8 +160,7 @@ namespace OrthancPlugins
     return false;
   }
 
-  bool CachedAuthorizationService::HasUserPermissionInternal(unsigned int& validity,
-                                                             const std::string& permission,
+  bool CachedAuthorizationService::HasUserPermissionInternal(const std::string& permission,
                                                              const UserProfile& profile)
   {
     assert(decorated_.get() != NULL);
@@ -176,28 +175,10 @@ namespace OrthancPlugins
       return (value == "1");
     }        
         
-    bool granted = decorated_->HasUserPermissionInternal(validity, permission, profile);
+    bool granted = decorated_->HasUserPermissionInternal(permission, profile);
 
-    if (granted)
-    {
-      if (validity > 0)
-      {
-        cache_->Store(key, "1", validity);
-      }
-        
-      return true;
-    }
-    else
-    {
-      if (validity > 0)
-      {
-        cache_->Store(key, "0", validity);
-      }
-        
-      return false;
-    }
+    cache_->Store(key, (granted ? "1" : "0"), 10); // don't cache for more than 10 seconds - it's the result of a quite easy computation anyway
+
+    return granted;
   }
-
-
-
 }
