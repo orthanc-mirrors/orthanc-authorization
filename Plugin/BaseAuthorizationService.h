@@ -44,8 +44,7 @@ namespace OrthancPlugins
                                         const Token* token,
                                         const std::string& tokenValue) = 0;
 
-    virtual bool HasUserPermissionInternal(unsigned int& validity,
-                                           const std::string& permission,
+    virtual bool HasUserPermissionInternal(const std::string& permission,
                                            const UserProfile& profile) = 0;
 
   public:
@@ -83,8 +82,7 @@ namespace OrthancPlugins
       return GetUserProfileInternal(validity, profile, NULL, "");
     }
 
-    virtual bool HasUserPermission(unsigned int& validity /* out */,
-                                   const std::set<std::string>& anyOfPermissions,
+    virtual bool HasUserPermission(const std::set<std::string>& anyOfPermissions,
                                    const UserProfile& profile) ORTHANC_OVERRIDE
     {
       if (anyOfPermissions.size() == 0)
@@ -94,7 +92,7 @@ namespace OrthancPlugins
 
       for (std::set<std::string>::const_iterator it = anyOfPermissions.begin(); it != anyOfPermissions.end(); ++it)
       {
-        if (HasUserPermissionInternal(validity, *it, profile))
+        if (HasUserPermissionInternal(*it, profile))
         {
           return true;
         }

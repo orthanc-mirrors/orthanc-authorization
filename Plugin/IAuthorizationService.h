@@ -94,8 +94,7 @@ namespace OrthancPlugins
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
                                          UserProfile& profile /* out */) = 0;
 
-    virtual bool HasUserPermission(unsigned int& validity /* out */,
-                                   const std::set<std::string>& anyOfPermissions,
+    virtual bool HasUserPermission(const std::set<std::string>& anyOfPermissions,
                                    const UserProfile& profile) = 0;
 
     virtual bool CreateToken(CreatedToken& response,

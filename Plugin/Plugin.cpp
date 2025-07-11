@@ -353,8 +353,7 @@ static bool TestRequiredPermissions(bool& hasUserRequiredPermissions,
                                     const OrthancPlugins::AssociativeArray& getArguments
                                     )
 {
-  unsigned int validity;  // ignored
-  if (authorizationService_->HasUserPermission(validity, requiredPermissions, profile))
+  if (authorizationService_->HasUserPermission(requiredPermissions, profile))
   {
     LOG(INFO) << msg << " -> granted to user '" << profile.name << "'";
     hasUserRequiredPermissions = true;
