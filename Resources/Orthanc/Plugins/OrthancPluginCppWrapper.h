@@ -1614,10 +1614,14 @@ void SerializeGetArguments(std::string& output, const OrthancPluginHttpRequest* 
       return requestBody_;
     }
 
+    // Execute only
     bool Execute();
 
+    // Forward response as is
+    void ForwardAnswer(OrthancPluginContext* context, OrthancPluginRestOutput* output);
+
     // Execute and forward the response as is
-    void Forward(OrthancPluginContext* context, OrthancPluginRestOutput* output);
+    void ExecuteAndForwardAnswer(OrthancPluginContext* context, OrthancPluginRestOutput* output);
 
     uint16_t GetHttpStatus() const;
 
