@@ -31,6 +31,7 @@
 #include <Toolbox.h>
 #include <SerializationToolbox.h>
 #include <EmbeddedResources.h>
+#include "Enumerations.h"
 
 #define ORTHANC_PLUGIN_NAME  "authorization"
 
@@ -38,7 +39,7 @@
 // Configuration of the authorization plugin
 static bool resourceTokensEnabled_ = false;
 static bool userTokensEnabled_ = false;
-static bool enableAuditLogs_ = true;
+static bool enableAuditLogs_ = false;
 static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::unique_ptr<OrthancPlugins::PermissionParser> permissionParser_;
@@ -344,6 +345,43 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
   return false;
 }
 
+static void RecordResourceAccessInternal(const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                         const OrthancPlugins::IAuthorizationParser::AccessedResources& accesses,
+                                         const std::string& action,
+                                         const Json::Value& logData)
+{
+  for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator it = accesses.begin(); it != accesses.end(); ++it)
+  {
+    if (it->GetLevel() == OrthancPlugins::AccessLevel_Study)
+    {
+      RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, it->GetOrthancId(), action, logData);
+    }
+  }
+}
+
+static void RecordResourceAccess(const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                 const std::string& uri,
+                                 OrthancPluginHttpMethod method,
+                                 const OrthancPlugins::AssociativeArray& getArguments)
+{
+  // Identify the resource
+  OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
+
+  if (authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
+  {
+    boost::smatch what;
+
+    // Identify the action
+    boost::regex archive("^/(patients|studies|series|instances)/([a-f0-9-]+)/(archive|media)$");
+    
+    if (boost::regex_match(uri, what, archive))
+    {
+      RecordResourceAccessInternal(profile, accesses, "download", Json::nullValue);
+    }
+  }
+
+}
+
 static bool TestRequiredPermissions(bool& hasUserRequiredPermissions, 
                                     const std::set<std::string>& requiredPermissions, 
                                     const OrthancPlugins::IAuthorizationService::UserProfile& profile,
@@ -367,6 +405,11 @@ static bool TestRequiredPermissions(bool& hasUserRequiredPermissions,
       if (hasAuthorizedLabelsForResource)
       {
         LOG(INFO) << msg2 << " -> granted";
+
+        if (enableAuditLogs_)
+        {
+          RecordResourceAccess(profile, uri, method, getArguments);
+        }
       }
       else
       {
@@ -1185,6 +1228,14 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
   }
 }
 
+void BulkModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
+                                      const char* url,
+                                      const OrthancPluginHttpRequest* request)
+{
+  throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Auth plugin: Not implemented: Currently unable to perform bulk modification/anonymization with audit logs enabled.");
+}
+
+
 void ModifyWithAuditLogs(OrthancPluginRestOutput* output,
                          const char* url,
                          const OrthancPluginHttpRequest* request)
@@ -1939,6 +1990,9 @@ extern "C"
         }
 #endif
 
+        enableAuditLogs_ = orthancFullConfiguration.GetBooleanValue("EnableAuditLogs", "false");
+
+
         pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
         pluginConfiguration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
 
@@ -2230,14 +2284,16 @@ extern "C"
             OrthancPlugins::RegisterRestCallback<ModifyWithAuditLogs>("/(patients|studies|series)/([^/]*)/modify", true);
             OrthancPlugins::RegisterRestCallback<LabelWithAuditLogs>("/(patients|studies|series)/([^/]*)/labels/([^/]*)", true);
             OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs>("/tools/bulk-delete", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-modify", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-anonymize", true);
+
+            // Note: other "actions" that do not modify the data like download-archive are logged in the HTTP filter (see RecordResourceAccess())
 
             // TODO
-            // OrthancPlugins::RegisterRestCallback<BulkModifyWithAuditLogs>("/tools/bulk-modify", true);
             // /modalities/move
             // /modalities/store
             // /archive + create-archive
             // /media + create-media + create-media-extended
-            // /bulk-anonymize + bulkd-modify
 
           }
         }

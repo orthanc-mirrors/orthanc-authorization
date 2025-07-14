@@ -1,9 +1,5 @@
-2025-07-14 - v 0.9.4
-====================
-
-=> Minimum Orthanc version: 1.11.3 <=
-=> Recommended SDK version: 1.12.4 <=
-=> Minimum SDK version: 1.11.3 <=
+Pending changes in the mainline
+===============================
 
 * New configuration "ExtraPermissions" to ADD new permissions to
   the default "Permissions" entries.
@@ -15,7 +11,16 @@
   provides it.
 * The User profile can now contain an "id" field if the auth-service
   provides it.
-* New experimental feature: audit-logs (TODO)
+* New experimental feature: audit-logs (TODO) - config "EnableAuditLogs"
+
+
+2025-07-14 - v 0.9.4
+====================
+
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.4 <=
+=> Minimum SDK version: 1.11.3 <=
+
 * Fixed a security issue: the entries in the cache token->permissions were kept too long in the cache
   allowing users to have access to generic routes even with an expired token.
   These entries are now stored maximum for 10 seconds.
