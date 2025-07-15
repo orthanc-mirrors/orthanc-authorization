@@ -129,13 +129,13 @@ static void RecordAuditLog(const std::string& userId,
     logDataSize = serializedLogData.size();
   }
 
-  OrthancPluginRecordAuditLog(OrthancPlugins::GetGlobalContext(),
-                              userId.c_str(),
-                              resourceType,
-                              resourceId.c_str(),
-                              action.c_str(),
-                              logDataPtr,
-                              logDataSize);
+  OrthancPluginAuditLog(OrthancPlugins::GetGlobalContext(),
+                        userId.c_str(),
+                        resourceType,
+                        resourceId.c_str(),
+                        action.c_str(),
+                        logDataPtr,
+                        logDataSize);
 }
 
 static void RecordAuditLog(const AuditLog& auditLog)
@@ -1279,9 +1279,9 @@ void LabelWithAuditLogs(OrthancPluginRestOutput* output,
 
   OrthancPlugins::RestApiClient coreApi(url, request);
 
-  if (request->method == OrthancPluginHttpMethod_Get && coreApi.Execute())
+  if (!enableAuditLogs_ || request->method == OrthancPluginHttpMethod_Get)
   {
-    coreApi.ForwardAnswer(context, output);
+    coreApi.ExecuteAndForwardAnswer(context, output);
     return;
   }
   else
