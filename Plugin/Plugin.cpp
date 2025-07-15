@@ -118,6 +118,24 @@ static void RecordAuditLog(const std::string& userId,
                            const Json::Value& logData)
 {
   LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
+  std::string serializedLogData;
+  const void* logDataPtr = NULL;
+  uint32_t logDataSize = 0;
+  
+  if (!logData.isNull())
+  {
+    Orthanc::Toolbox::WriteFastJson(serializedLogData, logData);
+    logDataPtr = reinterpret_cast<const void*>(serializedLogData.c_str());
+    logDataSize = serializedLogData.size();
+  }
+
+  OrthancPluginRecordAuditLog(OrthancPlugins::GetGlobalContext(),
+                              userId.c_str(),
+                              resourceType,
+                              resourceId.c_str(),
+                              action.c_str(),
+                              logDataPtr,
+                              logDataSize);
 }
 
 static void RecordAuditLog(const AuditLog& auditLog)
