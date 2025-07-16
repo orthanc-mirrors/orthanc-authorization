@@ -2008,7 +2008,7 @@ extern "C"
         }
 #endif
 
-        enableAuditLogs_ = orthancFullConfiguration.GetBooleanValue("EnableAuditLogs", "false");
+        enableAuditLogs_ = pluginConfiguration.GetBooleanValue("EnableAuditLogs", false);
 
 
         pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
