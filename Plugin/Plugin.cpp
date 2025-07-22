@@ -68,6 +68,8 @@ static void SendForbiddenError(const char* message, OrthancPluginRestOutput* out
 
 static const char* KEY_USER_DATA = "UserData";
 static const char* KEY_USER_ID = "AuditLogsUserId";
+static const char* KEY_PAYLOAD = "Payload";
+static const char* KEY_BEFORE_TAGS = "TagsBeforeModification";
 
 static bool GetUserIdFromUserData(std::string& userId, const Json::Value& payload)
 {
@@ -1214,15 +1216,36 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
   if ((payload.isMember("Synchronous") && !payload["Synchronous"].asBool())
     || (payload.isMember("Asynchronous") && !payload["Asynchronous"].asBool()))
   {
+    Json::Value logData;
+    logData[KEY_PAYLOAD] = payload;
+    
     // add UserData to the job payload to know who has modified the data.  The handling of the log will then happen in the OnChange handler
-    SetUserIdInUserdata(payload, userId);
+    SetUserIdInUserdata(logData, userId);
+
+    if (isModification)
+    {
+      // log the tags before modification (but not for anonymizations)
+      Json::Value resourceBefore;
+      if (resourceType == OrthancPluginResourceType_Study && OrthancPlugins::RestApiGet(resourceBefore, "/studies/" + resourceId, false))
+      {
+        Json::Value studyTagsBefore = resourceBefore["MainDicomTags"];
+        Json::Value patientTagsBefore = resourceBefore["PatientMainDicomTags"];
+        Orthanc::Toolbox::MergeJson(studyTagsBefore, patientTagsBefore);
+
+        logData[KEY_BEFORE_TAGS] = studyTagsBefore;
+      }
+      else
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Auth plugin: TODO: unable to handle anonymize/modify other levels than studies with audit logs enabled.");
+      }
+    }
 
     // in any case, record that this resource is being modified/anonymized and record the payload
     RecordAuditLog(userId, 
                    resourceType, 
                    resourceId, 
                    (isModification ? "start-modification-job" : "start-anonymization-job"), 
-                   payload);
+                   logData);
 
     if (coreApi.Execute())
     {
@@ -1882,31 +1905,6 @@ void GetPermissionList(OrthancPluginRestOutput* output,
 }
 
 
-void MergeJson(Json::Value &a, const Json::Value &b) {                                                                        
-                                                                                                                  
-  if (!a.isObject() || !b.isObject())
-  {
-    return;
-  }
-
-  Json::Value::Members members = b.getMemberNames();
-
-  for (size_t i = 0; i < members.size(); i++)
-  {
-    std::string key = members[i];
-    
-    if (!a[key].isNull() && a[key].type() == Json::objectValue && b[key].type() == Json::objectValue)
-    {
-      MergeJson(a[key], b[key]);
-    } 
-    else
-    {
-      a[key] = b[key];
-    }
-  }
-}
-
-
 extern "C"
 {
   ORTHANC_PLUGINS_API int32_t OrthancPluginInitialize(OrthancPluginContext* context)
@@ -1954,7 +1952,7 @@ extern "C"
         orthancFullConfiguration.GetSection(pluginProvidedConfiguration, PLUGIN_SECTION);
 
         // merge it with the default configuration.  This is a way to apply the all default values in a single step
-        MergeJson(pluginJsonConfiguration, pluginProvidedConfiguration.GetJson());
+        Orthanc::Toolbox::MergeJson(pluginJsonConfiguration, pluginProvidedConfiguration.GetJson());
 
         // recreate a OrthancConfiguration object from the merged configuration
         OrthancPlugins::OrthancConfiguration pluginConfiguration(pluginJsonConfiguration, PLUGIN_SECTION);
