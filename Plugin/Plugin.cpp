@@ -1367,8 +1367,30 @@ void GetAuditLogs(OrthancPluginRestOutput* output,
 {
   OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
 
+  bool isOutputCsv = false;
+
+  OrthancPlugins::HttpHeaders requestHeaders;
+  OrthancPlugins::GetHttpHeaders(requestHeaders, request);
+
+  OrthancPlugins::GetArguments getArguments;
+  OrthancPlugins::GetGetArguments(getArguments, request);
+
+  if (getArguments.find("format") != getArguments.end())
+  {
+    isOutputCsv = getArguments["format"] == "csv";
+  }
+  
+  if (!isOutputCsv && (requestHeaders.find("accept") != requestHeaders.end()))
+  {
+    std::string acceptHeader = requestHeaders["accept"];
+    Orthanc::Toolbox::ToLowerCase(acceptHeader);
+    
+    isOutputCsv = acceptHeader.find("text/csv") != std::string::npos;
+  }
+
   OrthancPlugins::RestApiClient coreApi("/plugins/postgresql/audit-logs", request);
   coreApi.SetAfterPlugins(true);
+  coreApi.SetRequestHeader("Accept", "application/json"); // the postgresql plugin only knows about the json format
 
   if (request->method != OrthancPluginHttpMethod_Get)
   {
@@ -1395,23 +1417,54 @@ void GetAuditLogs(OrthancPluginRestOutput* output,
       }
     }
 
-    OrthancPlugins::AnswerJson(response, output);
+    if (!isOutputCsv)
+    {
+      OrthancPlugins::AnswerJson(response, output);
+    }
+    else
+    {
+      std::vector<std::string> lines;
+
+      std::vector<std::string> firstLineColumns;
+      firstLineColumns.push_back("Timestamp");
+      firstLineColumns.push_back("UserId");
+      firstLineColumns.push_back("UserName");
+      firstLineColumns.push_back("ResourceId");
+      firstLineColumns.push_back("Action");
+      firstLineColumns.push_back("LogData");
+
+      std::string firstLine;
+      Orthanc::Toolbox::JoinStrings(firstLine, firstLineColumns,";");
+      lines.push_back(firstLine);
+
+      for (Json::ArrayIndex i = 0; i < response.size(); ++i)
+      {
+        std::vector<std::string> lineColumns;
+        std::string line;
+
+        const Json::Value& log = response[i];
+        lineColumns.push_back(log["Timestamp"].asString());
+        lineColumns.push_back(log["UserId"].asString());
+        lineColumns.push_back(log["UserName"].asString());
+        lineColumns.push_back(log["ResourceId"].asString());
+        lineColumns.push_back(log["Action"].asString());
+        
+        std::string logData;
+        Orthanc::Toolbox::WriteFastJson(logData, log["LogData"]);
+        boost::replace_all(logData, "\n", "");
+        lineColumns.push_back(logData);
+
+        Orthanc::Toolbox::JoinStrings(line, lineColumns,";");
+        lines.push_back(line);
+      }
+      
+      std::string csv;
+      Orthanc::Toolbox::JoinStrings(csv, lines, "\n");
+
+      OrthancPluginSetHttpHeader(context, output, "Content-disposition", "filename=\"audit-logs.csv\"");
+      OrthancPlugins::AnswerString(csv, "text/csv", output);
+    }
   }
-
-  // else
-  // {
-  //   OrthancPlugins::IAuthorizationService::UserProfile profile;
-  //   std::string userId;
-
-  //   if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
-  //   {
-  //     userId = profile.userId;  
-  //   }
-  //   else
-  //   {
-  //     throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to delete/put label with audit logs enabled.");
-  //   }
-    
 }
 
 

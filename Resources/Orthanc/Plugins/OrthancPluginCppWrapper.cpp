@@ -266,6 +266,16 @@ namespace OrthancPlugins
 #endif
 
 
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 7, 0)
+  void MemoryBuffer::AssignJson(const Json::Value& value)
+  {
+    std::string s;
+    WriteFastJson(s, value);
+    Assign(s);
+  }
+#endif
+
+
   void MemoryBuffer::Assign(OrthancPluginMemoryBuffer& other)
   {
     Clear();
@@ -4112,6 +4122,16 @@ namespace OrthancPlugins
   }
 #endif
 
+  void GetGetArguments(GetArguments& result, const OrthancPluginHttpRequest* request)
+  {
+    result.clear();
+
+    for (uint32_t i = 0; i < request->getCount; ++i)
+    {
+      result[request->getKeys[i]] = request->getValues[i];
+    }    
+  }
+
   void GetHttpHeaders(HttpHeaders& result, const OrthancPluginHttpRequest* request)
   {
     result.clear();
@@ -4233,6 +4253,15 @@ namespace OrthancPlugins
     {
       ORTHANC_PLUGINS_THROW_EXCEPTION(BadSequenceOfCalls);
     }
+  }
+#endif
+
+
+#if HAS_ORTHANC_PLUGIN_GENERIC_CALL_REST_API == 1
+  void RestApiClient::SetRequestHeader(const std::string& key,
+                                       const std::string& value)
+  {
+    requestHeaders_[key] = value;
   }
 #endif
 
