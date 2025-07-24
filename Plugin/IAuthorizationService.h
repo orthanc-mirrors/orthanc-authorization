@@ -91,6 +91,10 @@ namespace OrthancPlugins
                                 const Token& token,
                                 const std::string& tokenValue) = 0;
 
+    virtual bool GetUserProfileFromUserId(unsigned int& validity /* out */,
+                                          UserProfile& profile /* out */,
+                                          const std::string& userId) = 0;
+
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
                                          UserProfile& profile /* out */) = 0;
 

@@ -746,6 +746,21 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
+bool GetUserNameFromUserId(std::string& userName, 
+                           const std::string& userId)
+{
+  unsigned int validity; // not used
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+
+  if (authorizationService_->GetUserProfileFromUserId(validity, profile, userId))
+  {
+    userName = profile.name;
+    return true;
+  }
+
+  return false;
+}
+
 bool GetUserProfileInternal_(OrthancPlugins::IAuthorizationService::UserProfile& profile, 
                              const OrthancPlugins::AssociativeArray& headers,
                              const OrthancPlugins::AssociativeArray& getArguments,
@@ -1343,6 +1358,60 @@ void LabelWithAuditLogs(OrthancPluginRestOutput* output,
       return;
     }
   }
+}
+
+
+void GetAuditLogs(OrthancPluginRestOutput* output,
+                  const char* url,
+                  const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  OrthancPlugins::RestApiClient coreApi("/plugins/postgresql/audit-logs", request);
+  coreApi.SetAfterPlugins(true);
+
+  if (request->method != OrthancPluginHttpMethod_Get)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+    return;
+  }
+
+  Json::Value response;
+
+  if (coreApi.Execute() && coreApi.GetAnswerJson(response))
+  {
+    // transform the response: replace user-id by user-name
+    for (Json::ArrayIndex i = 0; i < response.size(); ++i)
+    {
+      const std::string& userId = response[i]["UserId"].asString();
+      std::string userName;
+      if (GetUserNameFromUserId(userName, userId))
+      {
+        response[i]["UserName"] = userName;
+      }
+      else
+      {
+        response[i]["UserName"] = userId;
+      }
+    }
+
+    OrthancPlugins::AnswerJson(response, output);
+  }
+
+  // else
+  // {
+  //   OrthancPlugins::IAuthorizationService::UserProfile profile;
+  //   std::string userId;
+
+  //   if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
+  //   {
+  //     userId = profile.userId;  
+  //   }
+  //   else
+  //   {
+  //     throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to delete/put label with audit logs enabled.");
+  //   }
+    
 }
 
 
@@ -2302,6 +2371,7 @@ extern "C"
             OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs>("/tools/bulk-delete", true);
             OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-modify", true);
             OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-anonymize", true);
+            OrthancPlugins::RegisterRestCallback<GetAuditLogs>("/auth/audit-logs", true);
 
             // Note: other "actions" that do not modify the data like download-archive are logged in the HTTP filter (see RecordResourceAccess())
 

@@ -14,9 +14,9 @@ Pending changes in the mainline
 * New experimental feature: audit-logs
   - Enabled by the "EnableAuditLogs" configuration.
   - Audit-logs are currently handled by the PostgreSQL plugin and can be 
-    browsed through the route /plugins/postgresql/audit-logs.
+    browsed through the route /auth/audit-logs.
   - New default permission "audit-logs" to grant access to the 
-    "/plugins/postgresql/audit-logs" route.
+    "/auth/audit-logs" route.
 
 
 

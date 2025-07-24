@@ -66,7 +66,8 @@ namespace OrthancPlugins
   CachedAuthorizationService::CachedAuthorizationService(BaseAuthorizationService* decorated /* takes ownership */,
                                                          ICacheFactory& factory) :
     decorated_(decorated),
-    cache_(factory.Create())
+    cache_(factory.Create()),
+    cacheUserId_(factory.Create())
   {
     if (decorated_.get() == NULL)
     {
@@ -114,7 +115,61 @@ namespace OrthancPlugins
     }
   }
 
-  
+  bool CachedAuthorizationService::GetUserProfileFromUserId(unsigned int& validityNotUsed,
+                                                            UserProfile& profile /* out */,
+                                                            const std::string& userId)
+  {
+    assert(decorated_.get() != NULL);
+
+    std::string key = "user-id-" + userId;
+    std::string serializedProfile;
+
+    if (cacheUserId_->Retrieve(serializedProfile, key))
+    {
+      // Return the previously cached profile
+      Json::Value jsonProfile;
+      
+      Orthanc::Toolbox::ReadJson(jsonProfile, serializedProfile);
+      
+      AuthorizationWebService::FromJson(profile, jsonProfile);
+
+      return true;
+    }        
+    else
+    {
+      unsigned int validity;
+
+      if (decorated_->GetUserProfileFromUserId(validity, profile, userId))
+      {
+        Json::Value jsonProfile;
+
+        AuthorizationWebService::ToJson(jsonProfile, profile);
+        Orthanc::Toolbox::WriteFastJson(serializedProfile, jsonProfile);
+
+        cacheUserId_->Store(key, serializedProfile, validity);
+        
+        return true;
+      }
+      else // if no user was found, store it as a profile where the user name is the user id
+      {
+        validity = 60;
+        profile.userId = userId;
+        profile.name = userId;
+
+        Json::Value jsonProfile;
+
+        AuthorizationWebService::ToJson(jsonProfile, profile);
+        Orthanc::Toolbox::WriteFastJson(serializedProfile, jsonProfile);
+
+        cacheUserId_->Store(key, serializedProfile, validity);
+        
+        return true;
+      }
+    }
+
+    return false;
+  }  
+
   bool CachedAuthorizationService::GetUserProfileInternal(unsigned int& validityNotUsed,
                                                           UserProfile& profile /* out */,
                                                           const Token* token,

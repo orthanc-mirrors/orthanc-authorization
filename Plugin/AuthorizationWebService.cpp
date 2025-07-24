@@ -388,6 +388,71 @@ namespace OrthancPlugins
     }
   }
 
+  bool AuthorizationWebService::GetUserProfileFromUserId(unsigned int& validity,
+                                                         UserProfile& profile /* out */,
+                                                         const std::string& userId)
+  {
+    if (userProfileUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get user profile if the 'WebServiceUserProfileUrl' is not configured");
+    }
+
+    Json::Value body;
+
+    body["user-id"] = userId;
+
+    if (!identifier_.empty())
+    {
+      body["identifier"] = identifier_;
+    }
+    else
+    {
+      body["identifier"] = Json::nullValue;
+    }
+    
+    std::string bodyAsString;
+    Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
+
+    try
+    {
+      HttpClient authClient;
+      authClient.SetUrl(userProfileUrl_);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Post);
+      authClient.AddHeader("Content-Type", "application/json");
+      authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
+
+      Json::Value jsonProfile;
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, jsonProfile);
+
+      if (jsonProfile.isNull())
+      {
+        validity = 60;
+        return false;
+      }
+      else if (!jsonProfile.isMember(VALIDITY) ||
+        jsonProfile[VALIDITY].type() != Json::intValue)
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat,
+                                        "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
+      }
+      validity = jsonProfile[VALIDITY].asUInt();
+    
+      FromJson(profile, jsonProfile);
+
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
+  }
 
 
   bool AuthorizationWebService::GetUserProfileInternal(unsigned int& validity,

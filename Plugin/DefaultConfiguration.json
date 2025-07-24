@@ -131,7 +131,7 @@
             ["get", "^/auth/settings/permissions$", "admin-permissions"],
 
             // audit-logs
-            ["get", "^/plugins/postgresql/audit-logs$", "admin-permissions|audit-logs"]
+            ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"]
         ]
     }
 }

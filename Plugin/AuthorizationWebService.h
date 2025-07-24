@@ -110,5 +110,8 @@ namespace OrthancPlugins
     
     static void FromJson(UserProfile& profile, const Json::Value& input);
 
+    virtual bool GetUserProfileFromUserId(unsigned int& validity,
+                                          UserProfile& profile /* out */,
+                                          const std::string& userId) ORTHANC_OVERRIDE;
   };
 }
