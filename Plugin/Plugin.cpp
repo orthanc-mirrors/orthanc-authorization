@@ -66,6 +66,36 @@ static void SendForbiddenError(const char* message, OrthancPluginRestOutput* out
   OrthancPluginSendHttpStatus(context, output, 403, message, strlen(message));
 }
 
+
+static void MergeJson(Json::Value &a,
+                      const Json::Value &b)
+{
+  // The semantics of this function is not generic enough to be included in the Orthanc framework
+  if (!a.isObject() || !b.isObject())
+  {
+    return;
+  }
+
+  Json::Value::Members members = b.getMemberNames();
+
+  for (size_t i = 0; i < members.size(); i++)
+  {
+    std::string key = members[i];
+
+    if (!a[key].isNull() &&
+        a[key].type() == Json::objectValue &&
+        b[key].type() == Json::objectValue)
+    {
+      MergeJson(a[key], b[key]);
+    }
+    else
+    {
+      a[key] = b[key];
+    }
+  }
+}
+
+
 static const char* KEY_USER_DATA = "UserData";
 static const char* KEY_USER_ID = "AuditLogsUserId";
 static const char* KEY_PAYLOAD = "Payload";
@@ -120,6 +150,15 @@ static void RecordAuditLog(const std::string& userId,
                            const Json::Value& logData)
 {
   LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
+
+  if (enableAuditLogs_)
+  {
+    // This function should not be called if audit logs are disabled
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+  }
+
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 12, 9)
+  // Audit logs are only available since Orthanc 1.12.9
   std::string serializedLogData;
   const void* logDataPtr = NULL;
   uint32_t logDataSize = 0;
@@ -138,6 +177,7 @@ static void RecordAuditLog(const std::string& userId,
                         action.c_str(),
                         logDataPtr,
                         logDataSize);
+#endif
 }
 
 static void RecordAuditLog(const AuditLog& auditLog)
@@ -1245,7 +1285,7 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
       {
         Json::Value studyTagsBefore = resourceBefore["MainDicomTags"];
         Json::Value patientTagsBefore = resourceBefore["PatientMainDicomTags"];
-        Orthanc::Toolbox::MergeJson(studyTagsBefore, patientTagsBefore);
+        MergeJson(studyTagsBefore, patientTagsBefore);
 
         logData[KEY_BEFORE_TAGS] = studyTagsBefore;
       }
@@ -2074,7 +2114,7 @@ extern "C"
         orthancFullConfiguration.GetSection(pluginProvidedConfiguration, PLUGIN_SECTION);
 
         // merge it with the default configuration.  This is a way to apply the all default values in a single step
-        Orthanc::Toolbox::MergeJson(pluginJsonConfiguration, pluginProvidedConfiguration.GetJson());
+        MergeJson(pluginJsonConfiguration, pluginProvidedConfiguration.GetJson());
 
         // recreate a OrthancConfiguration object from the merged configuration
         OrthancPlugins::OrthancConfiguration pluginConfiguration(pluginJsonConfiguration, PLUGIN_SECTION);
