@@ -102,9 +102,10 @@ namespace OrthancPlugins
                              const std::string& tokenKey, 
                              const std::string& tokenValue) ORTHANC_OVERRIDE;
 
-    virtual bool GetSettingsRoles(Json::Value& roles);
+    virtual bool GetSettingsRoles(Json::Value& roles) ORTHANC_OVERRIDE;
+
     virtual bool UpdateSettingsRoles(Json::Value& response,
-                                     const Json::Value& roles);
+                                     const Json::Value& roles) ORTHANC_OVERRIDE;
 
     static void ToJson(Json::Value& output, const UserProfile& profile);
     
