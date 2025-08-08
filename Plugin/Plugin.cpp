@@ -692,7 +692,7 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
             Json::Value jobContent = job["Content"];
             std::string sourceResourceId = jobContent["ParentResources"][0].asString();
             std::string modifiedResourceId = jobContent["ID"].asString();
-            OrthancPluginResourceType resourceType = OrthancPlugins::StringToResourceType(jobContent["Type"].asString().c_str());
+            OrthancPluginResourceType jobResourceType = OrthancPlugins::StringToResourceType(jobContent["Type"].asString().c_str());
 
             bool isAnonymization = jobContent.isMember("IsAnonymization") && jobContent["IsAnonymization"].asBool();
             LOG(WARNING) << jobContent.toStyledString();
@@ -702,27 +702,31 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
               std::string userId;
               if (GetUserIdFromUserData(userId, job))
               {
-                // attach a log to the source study
-                Json::Value logData;
-                logData["ModifiedResourceId"] = modifiedResourceId;
-                logData["ModifiedResourceType"] = resourceType;
+                {
+                  // attach a log to the source study
+                  Json::Value logData;
+                  logData["ModifiedResourceId"] = modifiedResourceId;
+                  logData["ModifiedResourceType"] = jobResourceType;
 
-                RecordAuditLog(userId, 
-                               resourceType,
-                               sourceResourceId, 
-                               (isAnonymization ? "success-anonymization" : "success-modification-job"), 
-                               logData);
+                  RecordAuditLog(userId,
+                                 jobResourceType,
+                                 sourceResourceId,
+                                 // TODO: "isAnonymization" is always true because of "if" => why this test?
+                                 (isAnonymization ? "success-anonymization" : "success-modification-job"),
+                                 logData);
+                }
                 
                 // attach a log to the modified study
                 if (sourceResourceId != modifiedResourceId)
                 {
                   Json::Value logData;
                   logData["SourceResourceId"] = sourceResourceId;
-                  logData["SourceResourceType"] = resourceType;
+                  logData["SourceResourceType"] = jobResourceType;
 
-                  RecordAuditLog(userId, 
-                                 resourceType,
-                                 modifiedResourceId, 
+                  RecordAuditLog(userId,
+                                 jobResourceType,
+                                 modifiedResourceId,
+                                 // TODO: "isAnonymization" is always true because of "if" => why this test?
                                  (isAnonymization ? "new-study-from-anonymization-job" : "new-study-from-modification-job"), 
                                  logData);
                 }
