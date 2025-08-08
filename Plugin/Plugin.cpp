@@ -990,7 +990,7 @@ void FilterLabelsFromGetCoreUrl(OrthancPluginRestOutput* output,
   if (request->method != OrthancPluginHttpMethod_Get)
   {
     OrthancPlugins::RestApiClient coreApi(url, request);
-    coreApi.Forward(context, output);
+    coreApi.ExecuteAndForwardAnswer(context, output);
   }
   else
   {
