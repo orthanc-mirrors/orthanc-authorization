@@ -171,6 +171,7 @@ static void RecordAuditLog(const std::string& userId,
   }
 
   OrthancPluginAuditLog(OrthancPlugins::GetGlobalContext(),
+                        ORTHANC_PLUGIN_NAME,
                         userId.c_str(),
                         resourceType,
                         resourceId.c_str(),
