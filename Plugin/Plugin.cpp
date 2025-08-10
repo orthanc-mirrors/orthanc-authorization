@@ -170,14 +170,14 @@ static void RecordAuditLog(const std::string& userId,
     logDataSize = serializedLogData.size();
   }
 
-  OrthancPluginAuditLog(OrthancPlugins::GetGlobalContext(),
-                        ORTHANC_PLUGIN_NAME,
-                        userId.c_str(),
-                        resourceType,
-                        resourceId.c_str(),
-                        action.c_str(),
-                        logDataPtr,
-                        logDataSize);
+  OrthancPluginEmitAuditLog(OrthancPlugins::GetGlobalContext(),
+                            ORTHANC_PLUGIN_NAME,
+                            userId.c_str(),
+                            resourceType,
+                            resourceId.c_str(),
+                            action.c_str(),
+                            logDataPtr,
+                            logDataSize);
 #endif
 }
 
