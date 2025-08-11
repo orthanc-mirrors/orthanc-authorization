@@ -151,7 +151,7 @@ static void RecordAuditLog(const std::string& userId,
 {
   LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
 
-  if (enableAuditLogs_)
+  if (!enableAuditLogs_)
   {
     // This function should not be called if audit logs are disabled
     throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
