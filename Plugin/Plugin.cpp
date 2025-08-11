@@ -696,41 +696,38 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
             OrthancPluginResourceType jobResourceType = OrthancPlugins::StringToResourceType(jobContent["Type"].asString().c_str());
 
             bool isAnonymization = jobContent.isMember("IsAnonymization") && jobContent["IsAnonymization"].asBool();
-            LOG(WARNING) << jobContent.toStyledString();
+            // LOG(WARNING) << jobContent.toStyledString();
 
-            if (isAnonymization)
+            std::string userId;
+            if (GetUserIdFromUserData(userId, job))
             {
-              std::string userId;
-              if (GetUserIdFromUserData(userId, job))
               {
-                {
-                  // attach a log to the source study
-                  Json::Value logData;
-                  logData["ModifiedResourceId"] = modifiedResourceId;
-                  logData["ModifiedResourceType"] = jobResourceType;
+                // attach a log to the source study
+                Json::Value logData;
+                logData["ModifiedResourceId"] = modifiedResourceId;
+                logData["ModifiedResourceType"] = jobResourceType;
 
-                  RecordAuditLog(userId,
-                                 jobResourceType,
-                                 sourceResourceId,
-                                 // TODO: "isAnonymization" is always true because of "if" => why this test?
-                                 (isAnonymization ? "success-anonymization" : "success-modification-job"),
-                                 logData);
-                }
-                
-                // attach a log to the modified study
-                if (sourceResourceId != modifiedResourceId)
-                {
-                  Json::Value logData;
-                  logData["SourceResourceId"] = sourceResourceId;
-                  logData["SourceResourceType"] = jobResourceType;
+                RecordAuditLog(userId,
+                                jobResourceType,
+                                sourceResourceId,
+                                // TODO: "isAnonymization" is always true because of "if" => why this test?
+                                (isAnonymization ? "success-anonymization-job" : "success-modification-job"),
+                                logData);
+              }
+              
+              // attach a log to the modified study
+              if (sourceResourceId != modifiedResourceId)
+              {
+                Json::Value logData;
+                logData["SourceResourceId"] = sourceResourceId;
+                logData["SourceResourceType"] = jobResourceType;
 
-                  RecordAuditLog(userId,
-                                 jobResourceType,
-                                 modifiedResourceId,
-                                 // TODO: "isAnonymization" is always true because of "if" => why this test?
-                                 (isAnonymization ? "new-study-from-anonymization-job" : "new-study-from-modification-job"), 
-                                 logData);
-                }
+                RecordAuditLog(userId,
+                                jobResourceType,
+                                modifiedResourceId,
+                                // TODO: "isAnonymization" is always true because of "if" => why this test?
+                                (isAnonymization ? "new-study-from-anonymization-job" : "new-study-from-modification-job"), 
+                                logData);
               }
             }            
           }
@@ -1280,7 +1277,9 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
     logData[KEY_PAYLOAD] = payload;
     
     // add UserData to the job payload to know who has modified the data.  The handling of the log will then happen in the OnChange handler
-    SetUserIdInUserdata(logData, userId);
+    SetUserIdInUserdata(payload, userId);
+    std::string modifiedPayload = payload.toStyledString();
+    coreApi.SetRequestBody(modifiedPayload);
 
     if (isModification)
     {
