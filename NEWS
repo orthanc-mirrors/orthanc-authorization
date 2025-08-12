@@ -17,7 +17,8 @@ Pending changes in the mainline
     browsed through the route /auth/audit-logs.
   - New default permission "audit-logs" to grant access to the 
     "/auth/audit-logs" route.
-
+* Fix: The "server-id" field is now included in all requests sent to the
+  auth-service.
 
 
 2025-07-14 - v 0.9.4

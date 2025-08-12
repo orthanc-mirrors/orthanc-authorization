@@ -36,8 +36,23 @@ namespace OrthancPlugins
   static const char* USER_NAME = "name";
   static const char* GROUPS = "groups";
   static const char* USER_ID = "user-id";
-
+  static const char* TOKEN_KEY = "token-key";
+  static const char* TOKEN_VALUE = "token-value";
+  static const char* SERVER_ID = "server-id";
   
+
+  void AddServerId(Json::Value& body, const std::string& serverId)
+  {
+    if (!serverId.empty())
+    {
+      body[SERVER_ID] = serverId;
+    }
+    else
+    {
+      body[SERVER_ID] = Json::nullValue;
+    }
+  }
+
 
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
                                                   OrthancPluginHttpMethod method,
@@ -83,18 +98,11 @@ namespace OrthancPlugins
 
     if (token != NULL)
     {
-      body["token-key"] = token->GetKey();
-      body["token-value"] = tokenValue;
+      body[TOKEN_KEY] = token->GetKey();
+      body[TOKEN_VALUE] = tokenValue;
     }
-
-    if (!identifier_.empty())
-    {
-      body["server-id"] = identifier_;
-    }
-    else
-    {
-      body["server-id"] = Json::nullValue;
-    }
+    
+    AddServerId(body, serverId_);
 
     if (access.GetLabels().size() > 0)
     {
@@ -170,7 +178,7 @@ namespace OrthancPlugins
 
   void AuthorizationWebService::SetIdentifier(const std::string& webServiceIdentifier)
   {
-    identifier_ = webServiceIdentifier;
+    serverId_ = webServiceIdentifier;
   }
 
 
@@ -185,8 +193,8 @@ namespace OrthancPlugins
 
     Json::Value body;
 
-    body["token-key"] = tokenKey;
-    body["token-value"] = tokenValue;
+    body[TOKEN_KEY] = tokenKey;
+    body[TOKEN_VALUE] = tokenValue;
 
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
@@ -270,6 +278,8 @@ namespace OrthancPlugins
     {
       body["id"] = id;
     }
+
+    AddServerId(body, serverId_);
 
     body["resources"] = Json::arrayValue;
     for (size_t i = 0; i < resources.size(); ++i)
@@ -401,14 +411,7 @@ namespace OrthancPlugins
 
     body["user-id"] = userId;
 
-    if (!identifier_.empty())
-    {
-      body["identifier"] = identifier_;
-    }
-    else
-    {
-      body["identifier"] = Json::nullValue;
-    }
+    AddServerId(body, serverId_);
     
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
@@ -469,18 +472,11 @@ namespace OrthancPlugins
 
     if (token != NULL)
     {
-      body["token-key"] = token->GetKey();
-      body["token-value"] = tokenValue;
+      body[TOKEN_KEY] = token->GetKey();
+      body[TOKEN_VALUE] = tokenValue;
     }
 
-    if (!identifier_.empty())
-    {
-      body["identifier"] = identifier_;
-    }
-    else
-    {
-      body["identifier"] = Json::nullValue;
-    }
+    AddServerId(body, serverId_);
 
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
@@ -585,8 +581,11 @@ namespace OrthancPlugins
 
     try
     {
+      Json::Value body = roles;
+      AddServerId(body, serverId_);
+
       std::string bodyAsString;
-      Orthanc::Toolbox::WriteFastJson(bodyAsString, roles);
+      Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
 
       HttpClient authClient;
       authClient.SetUrl(settingsRolesUrl_);

@@ -30,7 +30,7 @@ namespace OrthancPlugins
   private:
     std::string username_;
     std::string password_;
-    std::string identifier_;
+    std::string serverId_;
     std::string userProfileUrl_;
     std::string tokenValidationUrl_;
     std::string tokenDecoderUrl_;
