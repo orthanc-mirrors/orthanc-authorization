@@ -52,8 +52,7 @@ static std::set<OrthancPlugins::AccessLevel> uncheckedLevels_;
 static std::string JoinStrings(const std::set<std::string>& values)
 {
   std::string out;
-  std::set<std::string> copy = values;    // TODO: remove after upgrading to OrthancFramework 1.11.3+
-  Orthanc::Toolbox::JoinStrings(out, copy, "|");
+  Orthanc::Toolbox::JoinStrings(out, values, "|");
   return out;
 }
 
@@ -149,8 +148,6 @@ static void RecordAuditLog(const std::string& userId,
                            const std::string& action,
                            const Json::Value& logData)
 {
-  LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
-
   if (!enableAuditLogs_)
   {
     // This function should not be called if audit logs are disabled
@@ -178,6 +175,8 @@ static void RecordAuditLog(const std::string& userId,
                             action.c_str(),
                             logDataPtr,
                             logDataSize);
+#else
+  LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
 #endif
 }
 
@@ -710,7 +709,6 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
                 RecordAuditLog(userId,
                                 jobResourceType,
                                 sourceResourceId,
-                                // TODO: "isAnonymization" is always true because of "if" => why this test?
                                 (isAnonymization ? "success-anonymization-job" : "success-modification-job"),
                                 logData);
               }
@@ -725,7 +723,6 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
                 RecordAuditLog(userId,
                                 jobResourceType,
                                 modifiedResourceId,
-                                // TODO: "isAnonymization" is always true because of "if" => why this test?
                                 (isAnonymization ? "new-study-from-anonymization-job" : "new-study-from-modification-job"), 
                                 logData);
               }
@@ -1323,7 +1320,7 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
     
     if (coreApi.GetAnswerJson(coreResponse))
     {
-      LOG(WARNING) << "TODO AUDIT-LOG " << coreResponse.toStyledString(); // TODO 
+      LOG(WARNING) << "TODO AUDIT-LOG synchronous modification " << coreResponse.toStyledString(); // TODO 
     }
   }
 }

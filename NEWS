@@ -1,6 +1,12 @@
 Pending changes in the mainline
 ===============================
 
+=> Recommended Orthanc version: 1.12.9 <=
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.9 <=
+=> Minimum SDK version: 1.11.3 <=
+
+
 * New configuration "ExtraPermissions" to ADD new permissions to
   the default "Permissions" entries.
 * Improved handling of "Anonymous" user profiles (when no auth-tokens
@@ -213,7 +219,8 @@ Pending changes in the mainline
 ====================
 
 * BREAKING-CHANGE: the API between the authorization plugin and the 
-  WebService has slightly changed.  Check the samples in the README (TODO).
+  WebService has slightly changed.  Check the samples in this project:
+  https://github.com/orthanc-team/orthanc-auth-service.
   - "identifier" has been renamed into "server-id"
 * new user-permission based authorization model.  This is enabled if you
   define the new "WebServiceUserProfileUrl" configuration.
