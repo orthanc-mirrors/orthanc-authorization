@@ -34,7 +34,25 @@ namespace OrthancPlugins
   static const char* PERMISSIONS = "permissions";
   static const char* AUTHORIZED_LABELS = "authorized-labels";
   static const char* USER_NAME = "name";
+  static const char* GROUPS = "groups";
+  static const char* USER_ID = "user-id";
+  static const char* TOKEN_KEY = "token-key";
+  static const char* TOKEN_VALUE = "token-value";
+  static const char* SERVER_ID = "server-id";
   
+
+  void AddServerId(Json::Value& body, const std::string& serverId)
+  {
+    if (!serverId.empty())
+    {
+      body[SERVER_ID] = serverId;
+    }
+    else
+    {
+      body[SERVER_ID] = Json::nullValue;
+    }
+  }
+
 
   bool AuthorizationWebService::IsGrantedInternal(unsigned int& validity,
                                                   OrthancPluginHttpMethod method,
@@ -80,18 +98,11 @@ namespace OrthancPlugins
 
     if (token != NULL)
     {
-      body["token-key"] = token->GetKey();
-      body["token-value"] = tokenValue;
+      body[TOKEN_KEY] = token->GetKey();
+      body[TOKEN_VALUE] = tokenValue;
     }
-
-    if (!identifier_.empty())
-    {
-      body["server-id"] = identifier_;
-    }
-    else
-    {
-      body["server-id"] = Json::nullValue;
-    }
+    
+    AddServerId(body, serverId_);
 
     if (access.GetLabels().size() > 0)
     {
@@ -167,7 +178,7 @@ namespace OrthancPlugins
 
   void AuthorizationWebService::SetIdentifier(const std::string& webServiceIdentifier)
   {
-    identifier_ = webServiceIdentifier;
+    serverId_ = webServiceIdentifier;
   }
 
 
@@ -182,8 +193,8 @@ namespace OrthancPlugins
 
     Json::Value body;
 
-    body["token-key"] = tokenKey;
-    body["token-value"] = tokenValue;
+    body[TOKEN_KEY] = tokenKey;
+    body[TOKEN_VALUE] = tokenValue;
 
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
@@ -268,6 +279,8 @@ namespace OrthancPlugins
       body["id"] = id;
     }
 
+    AddServerId(body, serverId_);
+
     body["resources"] = Json::arrayValue;
     for (size_t i = 0; i < resources.size(); ++i)
     {
@@ -339,8 +352,10 @@ namespace OrthancPlugins
   {
     jsonProfile = Json::objectValue;
     jsonProfile[USER_NAME] = profile.name;
+    jsonProfile[USER_ID] = profile.userId;
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.authorizedLabels, AUTHORIZED_LABELS);
     Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.permissions, PERMISSIONS);
+    Orthanc::SerializationToolbox::WriteSetOfStrings(jsonProfile, profile.groups, GROUPS);
   }
     
   void AuthorizationWebService::FromJson(UserProfile& profile, const Json::Value& jsonProfile)
@@ -368,8 +383,79 @@ namespace OrthancPlugins
     {
       profile.authorizedLabels.insert(jsonProfile[AUTHORIZED_LABELS][i].asString());
     }
+
+    if (jsonProfile.isMember(GROUPS) && jsonProfile[GROUPS].isArray())
+    {
+      for (Json::ArrayIndex i = 0; i < jsonProfile[GROUPS].size(); ++i)
+      {
+        profile.groups.insert(jsonProfile[GROUPS][i].asString());
+      }
+    }
+
+    if (jsonProfile.isMember(USER_ID) && jsonProfile[USER_ID].isString())
+    {
+      profile.userId = jsonProfile[USER_ID].asString();
+    }
   }
 
+  bool AuthorizationWebService::GetUserProfileFromUserId(unsigned int& validity,
+                                                         UserProfile& profile /* out */,
+                                                         const std::string& userId)
+  {
+    if (userProfileUrl_.empty())
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_BadRequest, "Can not get user profile if the 'WebServiceUserProfileUrl' is not configured");
+    }
+
+    Json::Value body;
+
+    body["user-id"] = userId;
+
+    AddServerId(body, serverId_);
+    
+    std::string bodyAsString;
+    Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
+
+    try
+    {
+      HttpClient authClient;
+      authClient.SetUrl(userProfileUrl_);
+      if (!username_.empty())
+      {
+        authClient.SetCredentials(username_, password_);
+      }
+      authClient.SetBody(bodyAsString);
+      authClient.SetMethod(OrthancPluginHttpMethod_Post);
+      authClient.AddHeader("Content-Type", "application/json");
+      authClient.AddHeader("Expect", "");
+      authClient.SetTimeout(10);
+
+      Json::Value jsonProfile;
+      OrthancPlugins::HttpHeaders answerHeaders;
+      authClient.Execute(answerHeaders, jsonProfile);
+
+      if (jsonProfile.isNull())
+      {
+        validity = 60;
+        return false;
+      }
+      else if (!jsonProfile.isMember(VALIDITY) ||
+        jsonProfile[VALIDITY].type() != Json::intValue)
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat,
+                                        "Syntax error in the result of the Auth Web service, the format of the UserProfile is invalid");
+      }
+      validity = jsonProfile[VALIDITY].asUInt();
+    
+      FromJson(profile, jsonProfile);
+
+      return true;
+    }
+    catch (Orthanc::OrthancException& ex)
+    {
+      return false;
+    }
+  }
 
 
   bool AuthorizationWebService::GetUserProfileInternal(unsigned int& validity,
@@ -386,18 +472,11 @@ namespace OrthancPlugins
 
     if (token != NULL)
     {
-      body["token-key"] = token->GetKey();
-      body["token-value"] = tokenValue;
+      body[TOKEN_KEY] = token->GetKey();
+      body[TOKEN_VALUE] = tokenValue;
     }
 
-    if (!identifier_.empty())
-    {
-      body["identifier"] = identifier_;
-    }
-    else
-    {
-      body["identifier"] = Json::nullValue;
-    }
+    AddServerId(body, serverId_);
 
     std::string bodyAsString;
     Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
@@ -502,8 +581,11 @@ namespace OrthancPlugins
 
     try
     {
+      Json::Value body = roles;
+      AddServerId(body, serverId_);
+
       std::string bodyAsString;
-      Orthanc::Toolbox::WriteFastJson(bodyAsString, roles);
+      Orthanc::Toolbox::WriteFastJson(bodyAsString, body);
 
       HttpClient authClient;
       authClient.SetUrl(settingsRolesUrl_);

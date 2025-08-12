@@ -31,6 +31,7 @@
 #include <Toolbox.h>
 #include <SerializationToolbox.h>
 #include <EmbeddedResources.h>
+#include "Enumerations.h"
 
 #define ORTHANC_PLUGIN_NAME  "authorization"
 
@@ -38,6 +39,7 @@
 // Configuration of the authorization plugin
 static bool resourceTokensEnabled_ = false;
 static bool userTokensEnabled_ = false;
+static bool enableAuditLogs_ = false;
 static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::unique_ptr<OrthancPlugins::PermissionParser> permissionParser_;
@@ -50,8 +52,7 @@ static std::set<OrthancPlugins::AccessLevel> uncheckedLevels_;
 static std::string JoinStrings(const std::set<std::string>& values)
 {
   std::string out;
-  std::set<std::string> copy = values;    // TODO: remove after upgrading to OrthancFramework 1.11.3+
-  Orthanc::Toolbox::JoinStrings(out, copy, "|");
+  Orthanc::Toolbox::JoinStrings(out, values, "|");
   return out;
 }
 
@@ -65,6 +66,137 @@ static void SendForbiddenError(const char* message, OrthancPluginRestOutput* out
 }
 
 
+static void MergeJson(Json::Value &a,
+                      const Json::Value &b)
+{
+  // The semantics of this function is not generic enough to be included in the Orthanc framework
+  if (!a.isObject() || !b.isObject())
+  {
+    return;
+  }
+
+  Json::Value::Members members = b.getMemberNames();
+
+  for (size_t i = 0; i < members.size(); i++)
+  {
+    std::string key = members[i];
+
+    if (!a[key].isNull() &&
+        a[key].type() == Json::objectValue &&
+        b[key].type() == Json::objectValue)
+    {
+      MergeJson(a[key], b[key]);
+    }
+    else
+    {
+      a[key] = b[key];
+    }
+  }
+}
+
+
+static const char* KEY_USER_DATA = "UserData";
+static const char* KEY_USER_ID = "AuditLogsUserId";
+static const char* KEY_PAYLOAD = "Payload";
+static const char* KEY_BEFORE_TAGS = "TagsBeforeModification";
+
+static bool GetUserIdFromUserData(std::string& userId, const Json::Value& payload)
+{
+  if (payload.isMember(KEY_USER_DATA) && payload[KEY_USER_DATA].isObject() 
+    && payload[KEY_USER_DATA].isMember(KEY_USER_ID) && payload[KEY_USER_DATA][KEY_USER_ID].isString())
+  {
+    userId = payload[KEY_USER_DATA][KEY_USER_ID].asString();
+    return true;
+  }
+  return false;
+}
+
+static void SetUserIdInUserdata(Json::Value& payload, const std::string& userId)
+{
+  if (!payload.isMember(KEY_USER_DATA))
+  {
+    payload[KEY_USER_DATA] = Json::objectValue;
+  }
+  payload[KEY_USER_DATA][KEY_USER_ID] = userId;
+}
+
+struct AuditLog
+{
+  std::string userId;
+  OrthancPluginResourceType resourceType;
+  std::string resourceId;
+  std::string action;
+  Json::Value logData;
+
+  AuditLog(const std::string& userId,
+           const OrthancPluginResourceType& resourceType,
+           const std::string& resourceId,
+           const std::string& action,
+           const Json::Value& logData) :
+    userId(userId),
+    resourceType(resourceType),
+    resourceId(resourceId),
+    action(action),
+    logData(logData)
+  {
+  }
+};
+
+static void RecordAuditLog(const std::string& userId,
+                           const OrthancPluginResourceType& resourceType,
+                           const std::string& resourceId,
+                           const std::string& action,
+                           const Json::Value& logData)
+{
+  if (!enableAuditLogs_)
+  {
+    // This function should not be called if audit logs are disabled
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+  }
+
+#if ORTHANC_PLUGINS_VERSION_IS_ABOVE(1, 12, 9)
+  // Audit logs are only available since Orthanc 1.12.9
+  std::string serializedLogData;
+  const void* logDataPtr = NULL;
+  uint32_t logDataSize = 0;
+  
+  if (!logData.isNull())
+  {
+    Orthanc::Toolbox::WriteFastJson(serializedLogData, logData);
+    logDataPtr = reinterpret_cast<const void*>(serializedLogData.c_str());
+    logDataSize = serializedLogData.size();
+  }
+
+  OrthancPluginEmitAuditLog(OrthancPlugins::GetGlobalContext(),
+                            ORTHANC_PLUGIN_NAME,
+                            userId.c_str(),
+                            resourceType,
+                            resourceId.c_str(),
+                            action.c_str(),
+                            logDataPtr,
+                            logDataSize);
+#else
+  LOG(WARNING) << "AUDIT-LOG: " << userId << " / " << action << " on " << resourceType << ":" << resourceId << ", " << logData.toStyledString();
+#endif
+}
+
+static void RecordAuditLog(const AuditLog& auditLog)
+{
+  RecordAuditLog(auditLog.userId,
+                 auditLog.resourceType,
+                 auditLog.resourceId,
+                 auditLog.action,
+                 auditLog.logData);
+}
+
+
+static void RecordAuditLogs(const std::list<AuditLog>& auditLogs)
+{
+  for (std::list<AuditLog>::const_iterator it = auditLogs.begin(); it != auditLogs.end(); ++it)
+  {
+    RecordAuditLog(*it);
+  }
+}
 
 class TokenAndValue
 {
@@ -273,6 +405,88 @@ static bool IsResourceAccessGranted(const std::vector<TokenAndValue>& authTokens
   return false;
 }
 
+static void RecordResourceAccessInternal(const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                         const OrthancPlugins::IAuthorizationParser::AccessedResources& accesses,
+                                         const std::string& action,
+                                         const Json::Value& logData)
+{
+  for (OrthancPlugins::IAuthorizationParser::AccessedResources::const_iterator it = accesses.begin(); it != accesses.end(); ++it)
+  {
+    if (it->GetLevel() == OrthancPlugins::AccessLevel_Study)
+    {
+      RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, it->GetOrthancId(), action, logData);
+    }
+  }
+}
+
+static void RecordResourceAccess(const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                 const std::string& uri,
+                                 OrthancPluginHttpMethod method,
+                                 const OrthancPlugins::AssociativeArray& getArguments)
+{
+  // Identify the resource
+  OrthancPlugins::IAuthorizationParser::AccessedResources accesses;
+
+  if (authorizationParser_->Parse(accesses, uri, getArguments.GetMap()))
+  {
+    boost::smatch what;
+
+    // Identify the action
+    boost::regex archive("^/(patients|studies|series|instances)/([a-f0-9-]+)/(archive|media)$");
+    
+    if (boost::regex_match(uri, what, archive))
+    {
+      RecordResourceAccessInternal(profile, accesses, "download", Json::nullValue);
+    }
+  }
+
+}
+
+static bool TestRequiredPermissions(bool& hasUserRequiredPermissions, 
+                                    const std::set<std::string>& requiredPermissions, 
+                                    const OrthancPlugins::IAuthorizationService::UserProfile& profile,
+                                    const std::string& msg, 
+                                    const char* uri,
+                                    OrthancPluginHttpMethod method,
+                                    const OrthancPlugins::AssociativeArray& getArguments
+                                    )
+{
+  if (authorizationService_->HasUserPermission(requiredPermissions, profile))
+  {
+    LOG(INFO) << msg << " -> granted to user '" << profile.name << "'";
+    hasUserRequiredPermissions = true;
+
+    // check labels permissions
+    std::string msg2 = std::string("Testing whether user has the authorized_labels to access '") + uri + "'";
+
+    bool hasAuthorizedLabelsForResource = false;
+    if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, method, getArguments, profile))
+    {
+      if (hasAuthorizedLabelsForResource)
+      {
+        LOG(INFO) << msg2 << " -> granted";
+
+        if (enableAuditLogs_)
+        {
+          RecordResourceAccess(profile, uri, method, getArguments);
+        }
+      }
+      else
+      {
+        LOG(INFO) << msg2 << " -> not granted";
+        return false; // the labels for this resource prevents access -> stop checking now !
+      }
+    }
+  }
+  else
+  {
+    LOG(INFO) << msg << " -> not granted";
+    hasUserRequiredPermissions = false;
+  }
+  
+  return true;
+}
+
 static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
                                   const char *uri,
                                   const char *ip,
@@ -313,6 +527,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
     bool hasUserRequiredPermissions = false;
+    std::string userId;
 
     if (permissionParser_.get() != NULL &&
       authorizationService_.get() != NULL) 
@@ -323,21 +538,20 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       {
         if (authTokens.empty())
         {
-          std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "'";
-          
-          LOG(INFO) << msg; 
+          std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "' required to match '" + matchedPattern + "'";
 
-          if (authorizationService_->HasAnonymousUserPermission(requiredPermissions))
+          OrthancPlugins::IAuthorizationService::UserProfile anonymousProfile;
+          unsigned int validityNotUsed;
+          authorizationService_->GetUserProfile(validityNotUsed, anonymousProfile, OrthancPlugins::Token(OrthancPlugins::TokenType_None, ""), "");
+          userId = "anonymous";
+
+          LOG(INFO) << msg; 
+          if (!TestRequiredPermissions(hasUserRequiredPermissions, requiredPermissions, anonymousProfile, msg, uri, method, getArguments))
           {
-            LOG(INFO) << msg << " -> granted";
-            hasUserRequiredPermissions = true;
+            return 0; // the labels for this resource prevents access -> stop checking now !
           }
-          else
-          {
-            LOG(INFO) << msg << " -> not granted";
-            hasUserRequiredPermissions = false;
-            // continue in order to check if there is a resource token that could grant access to the resource
-          }
+
+          // continue in order to check if there is a resource token that could grant access to the resource
         }
         else
         {
@@ -345,38 +559,21 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
           {
             std::string msg = std::string("Testing whether user has the required permissions '") + JoinStrings(requiredPermissions) + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "' required to match '" + matchedPattern + "'";
 
-            // LOG(INFO) << msg;
+            LOG(INFO) << msg;
             OrthancPlugins::IAuthorizationService::UserProfile profile;
             unsigned int validityNotUsed;
             authorizationService_->GetUserProfile(validityNotUsed, profile, authTokens[i].GetToken(), authTokens[i].GetValue());
 
-            if (authorizationService_->HasUserPermission(requiredPermissions, profile))
+            if (!profile.userId.empty())
             {
-              LOG(INFO) << msg << " -> granted";
-              hasUserRequiredPermissions = true;
-
-              // check labels permissions
-              msg = std::string("Testing whether user has the authorized_labels to access '") + uri + "' based on the HTTP header '" + authTokens[i].GetToken().GetKey() + "'";
-
-              bool hasAuthorizedLabelsForResource = false;
-              if (CheckAuthorizedLabelsForResource(hasAuthorizedLabelsForResource, uri, method, getArguments, profile))
-              {
-                if (hasAuthorizedLabelsForResource)
-                {
-                  LOG(INFO) << msg << " -> granted";
-                }
-                else
-                {
-                  LOG(INFO) << msg << " -> not granted";
-                  return 0; // the labels for this resource prevents access -> stop checking now !
-                }
-              }
+              userId = profile.userId;
             }
-            else
+
+            if (!TestRequiredPermissions(hasUserRequiredPermissions, requiredPermissions, profile, msg, uri, method, getArguments))
             {
-              LOG(INFO) << msg << " -> not granted";
-              hasUserRequiredPermissions = false;
+              return 0; // the labels for this resource prevents access -> stop checking now !
             }
+
           }
         }
       }
@@ -478,34 +675,95 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
 {
   try
   {
-    if (authorizationParser_.get() == NULL)
+    if (authorizationParser_.get() == NULL || !enableAuditLogs_)
     {
       return OrthancPluginErrorCode_Success;
     }
-    
-    if (changeType == OrthancPluginChangeType_Deleted)
+
+    switch(changeType)
     {
-      switch (resourceType)
+      case OrthancPluginChangeType_JobSuccess:
       {
-        case OrthancPluginResourceType_Patient:
-          authorizationParser_->Invalidate(Orthanc::ResourceType_Patient, resourceId);
-          break;
+        Json::Value job;
+        if (OrthancPlugins::RestApiGet(job, std::string("/jobs/") + resourceId, false))
+        {
+          if (job["Type"].asString() == "ResourceModification")
+          {
+            Json::Value jobContent = job["Content"];
+            std::string sourceResourceId = jobContent["ParentResources"][0].asString();
+            std::string modifiedResourceId = jobContent["ID"].asString();
+            OrthancPluginResourceType jobResourceType = OrthancPlugins::StringToResourceType(jobContent["Type"].asString().c_str());
 
-        case OrthancPluginResourceType_Study:
-          authorizationParser_->Invalidate(Orthanc::ResourceType_Study, resourceId);
-          break;
+            bool isAnonymization = jobContent.isMember("IsAnonymization") && jobContent["IsAnonymization"].asBool();
+            // LOG(WARNING) << jobContent.toStyledString();
 
-        case OrthancPluginResourceType_Series:
-          authorizationParser_->Invalidate(Orthanc::ResourceType_Series, resourceId);
-          break;
+            std::string userId;
+            if (GetUserIdFromUserData(userId, job))
+            {
+              {
+                // attach a log to the source study
+                Json::Value logData;
+                logData["ModifiedResourceId"] = modifiedResourceId;
+                logData["ModifiedResourceType"] = jobResourceType;
 
-        case OrthancPluginResourceType_Instance:
-          authorizationParser_->Invalidate(Orthanc::ResourceType_Instance, resourceId);
-          break;
+                RecordAuditLog(userId,
+                                jobResourceType,
+                                sourceResourceId,
+                                (isAnonymization ? "success-anonymization-job" : "success-modification-job"),
+                                logData);
+              }
+              
+              // attach a log to the modified study
+              if (sourceResourceId != modifiedResourceId)
+              {
+                Json::Value logData;
+                logData["SourceResourceId"] = sourceResourceId;
+                logData["SourceResourceType"] = jobResourceType;
 
-        default:
-          break;
+                RecordAuditLog(userId,
+                                jobResourceType,
+                                modifiedResourceId,
+                                (isAnonymization ? "new-study-from-anonymization-job" : "new-study-from-modification-job"), 
+                                logData);
+              }
+            }            
+          }
+
+        }
+
+        return OrthancPluginErrorCode_Success;
       }
+      case OrthancPluginChangeType_JobFailure:
+      {
+        return OrthancPluginErrorCode_Success;
+      }
+
+      case OrthancPluginChangeType_Deleted:
+      {
+        switch (resourceType)
+        {
+          case OrthancPluginResourceType_Patient:
+            authorizationParser_->Invalidate(Orthanc::ResourceType_Patient, resourceId);
+            break;
+
+          case OrthancPluginResourceType_Study:
+            authorizationParser_->Invalidate(Orthanc::ResourceType_Study, resourceId);
+            break;
+
+          case OrthancPluginResourceType_Series:
+            authorizationParser_->Invalidate(Orthanc::ResourceType_Series, resourceId);
+            break;
+
+          case OrthancPluginResourceType_Instance:
+            authorizationParser_->Invalidate(Orthanc::ResourceType_Instance, resourceId);
+            break;
+
+          default:
+            break;
+        }
+      }
+      default:
+        return OrthancPluginErrorCode_Success;    
     }
        
     return OrthancPluginErrorCode_Success;
@@ -527,6 +785,62 @@ static OrthancPluginErrorCode OnChangeCallback(OrthancPluginChangeType changeTyp
   }
 }
 
+bool GetUserNameFromUserId(std::string& userName, 
+                           const std::string& userId)
+{
+  unsigned int validity; // not used
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+
+  if (authorizationService_->GetUserProfileFromUserId(validity, profile, userId))
+  {
+    userName = profile.name;
+    return true;
+  }
+
+  return false;
+}
+
+bool GetUserProfileInternal_(OrthancPlugins::IAuthorizationService::UserProfile& profile, 
+                             const OrthancPlugins::AssociativeArray& headers,
+                             const OrthancPlugins::AssociativeArray& getArguments,
+                             bool ignoreEmptyValues)
+{
+  for (std::set<OrthancPlugins::Token>::const_iterator
+          token = tokens_.begin(); token != tokens_.end(); ++token)
+  {
+    OrthancPlugins::IAuthorizationService::UserProfile tryProfile;
+
+    std::string value;
+    switch (token->GetType())
+    {
+      case OrthancPlugins::TokenType_HttpHeader:
+        headers.GetValue(value, token->GetKey());
+        break;
+
+      case OrthancPlugins::TokenType_GetArgument:
+        getArguments.GetValue(value, token->GetKey());
+        break;
+
+      default:
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+    }
+    
+    if (ignoreEmptyValues && value.empty())
+    {
+      continue;
+    }
+
+    unsigned int validity; // not used
+    if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
+    {
+      profile = tryProfile;
+      return true;
+    }
+  }
+
+  return false;
+}
+
 
 bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& profile, const OrthancPluginHttpRequest* request)
 {
@@ -537,41 +851,14 @@ bool GetUserProfileInternal(OrthancPlugins::IAuthorizationService::UserProfile& 
     (request->getCount, request->getKeys, request->getValues, true);
 
   // Loop over all the authorization tokens stored in the HTTP
-  // headers, until finding one that is granted
-  for (std::set<OrthancPlugins::Token>::const_iterator
-          token = tokens_.begin(); token != tokens_.end(); ++token)
+  // headers, until finding one that is granted.
+  // But, first process only the tokens with a value to avoid getting identified as anonymous too fast !
+  if (GetUserProfileInternal_(profile, headers, getArguments, true))
   {
-    OrthancPlugins::IAuthorizationService::UserProfile tryProfile;
-
-    std::string value;
-
-    bool hasValue = false;
-    switch (token->GetType())
-    {
-      case OrthancPlugins::TokenType_HttpHeader:
-        hasValue = headers.GetValue(value, token->GetKey());
-        break;
-
-      case OrthancPlugins::TokenType_GetArgument:
-        hasValue = getArguments.GetValue(value, token->GetKey());
-        break;
-
-      default:
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
-    }
-    
-    if (hasValue)
-    {
-      unsigned int validity; // not used
-      if (authorizationService_->GetUserProfile(validity, tryProfile, *token, value))
-      {
-        profile = tryProfile;
-        return true;
-      }
-    }
+    return true;
   }
 
-  return false;
+  return GetUserProfileInternal_(profile, headers, getArguments, false);
 }
 
 void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile)
@@ -921,6 +1208,463 @@ void ToolsCountResources(OrthancPluginRestOutput* output,
   ToolsFindOrCountResources(output, url, request, "/tools/count-resources", false);
 }
 
+void UploadInstancesWithAuditLogs(OrthancPluginRestOutput* output,
+                                  const char* url,
+                                  const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  // always forward to core
+  OrthancPlugins::RestApiClient coreApi(url, request);
+  coreApi.ExecuteAndForwardAnswer(context, output);
+
+  if (request->method == OrthancPluginHttpMethod_Post)
+  {
+    OrthancPlugins::IAuthorizationService::UserProfile profile;
+    Json::Value coreResponse;
+
+    if (GetUserProfileInternal(profile, request) && coreApi.GetAnswerJson(coreResponse))
+    {
+      RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, coreResponse["ParentStudy"].asString(), "uploaded-instance", coreResponse["ID"].asString());
+    }
+    else
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile found, unable to handle POST to /instances with audit logs enabled.");
+    }
+  }
+}
+
+
+void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
+                                  const char* url,
+                                  const OrthancPluginHttpRequest* request,
+                                  bool isModification)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+  OrthancPluginResourceType resourceType = OrthancPlugins::StringToResourceType(request->groups[0]);
+  std::string resourceId = request->groups[1];
+
+  OrthancPlugins::RestApiClient coreApi(url, request);
+
+  Json::Value payload;
+  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+  }
+
+  // Either there is a userId in UserData or the request comes from a user with profile
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  std::string userId;
+
+  // LOG(WARNING) << payload.toStyledString();
+
+  if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
+  {
+    userId = profile.userId;  
+  } 
+  else if (!GetUserIdFromUserData(userId, payload))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to handle anonymize/modify with audit logs enabled.");
+  }
+
+  if ((payload.isMember("Synchronous") && !payload["Synchronous"].asBool())
+    || (payload.isMember("Asynchronous") && !payload["Asynchronous"].asBool()))
+  {
+    Json::Value logData;
+    logData[KEY_PAYLOAD] = payload;
+    
+    // add UserData to the job payload to know who has modified the data.  The handling of the log will then happen in the OnChange handler
+    SetUserIdInUserdata(payload, userId);
+    std::string modifiedPayload = payload.toStyledString();
+    coreApi.SetRequestBody(modifiedPayload);
+
+    if (isModification)
+    {
+      // log the tags before modification (but not for anonymizations)
+      Json::Value resourceBefore;
+      if (resourceType == OrthancPluginResourceType_Study && OrthancPlugins::RestApiGet(resourceBefore, "/studies/" + resourceId, false))
+      {
+        Json::Value studyTagsBefore = resourceBefore["MainDicomTags"];
+        Json::Value patientTagsBefore = resourceBefore["PatientMainDicomTags"];
+        MergeJson(studyTagsBefore, patientTagsBefore);
+
+        logData[KEY_BEFORE_TAGS] = studyTagsBefore;
+      }
+      else
+      {
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Auth plugin: TODO: unable to handle anonymize/modify other levels than studies with audit logs enabled.");
+      }
+    }
+
+    // in any case, record that this resource is being modified/anonymized and record the payload
+    RecordAuditLog(userId, 
+                   resourceType, 
+                   resourceId, 
+                   (isModification ? "start-modification-job" : "start-anonymization-job"), 
+                   logData);
+
+    if (coreApi.Execute())
+    {
+      coreApi.ForwardAnswer(context, output);
+    }
+  }
+  else
+  {
+    Json::Value coreResponse;
+
+    // if it is synchronous, perform the modification and record the log directly
+    if (coreApi.Execute())
+    {
+      coreApi.ForwardAnswer(context, output);
+    }
+    
+    if (coreApi.GetAnswerJson(coreResponse))
+    {
+      LOG(WARNING) << "TODO AUDIT-LOG synchronous modification " << coreResponse.toStyledString(); // TODO 
+    }
+  }
+}
+
+void BulkModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
+                                      const char* url,
+                                      const OrthancPluginHttpRequest* request)
+{
+  throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Auth plugin: Not implemented: Currently unable to perform bulk modification/anonymization with audit logs enabled.");
+}
+
+
+void ModifyWithAuditLogs(OrthancPluginRestOutput* output,
+                         const char* url,
+                         const OrthancPluginHttpRequest* request)
+{
+  ModifyAnonymizeWithAuditLogs(output, url, request, true);
+}
+
+void AnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
+                            const char* url,
+                            const OrthancPluginHttpRequest* request)
+{
+  ModifyAnonymizeWithAuditLogs(output, url, request, false);
+}
+
+void LabelWithAuditLogs(OrthancPluginRestOutput* output,
+                        const char* url,
+                        const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+  OrthancPluginResourceType resourceType = OrthancPlugins::StringToResourceType(request->groups[0]);
+  std::string resourceId = request->groups[1];
+  std::string label = request->groups[2];
+
+  OrthancPlugins::RestApiClient coreApi(url, request);
+
+  if (!enableAuditLogs_ || request->method == OrthancPluginHttpMethod_Get)
+  {
+    coreApi.ExecuteAndForwardAnswer(context, output);
+    return;
+  }
+  else
+  {
+    OrthancPlugins::IAuthorizationService::UserProfile profile;
+    std::string userId;
+
+    if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
+    {
+      userId = profile.userId;  
+    }
+    else
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to delete/put label with audit logs enabled.");
+    }
+    
+    std::string action;
+    if (request->method == OrthancPluginHttpMethod_Delete)
+    {
+      action = "deleted-label";
+    }
+    else if (request->method == OrthancPluginHttpMethod_Put)
+    {
+      action = "added-label";
+    }
+    
+    if (coreApi.Execute())
+    {
+      RecordAuditLog(userId, 
+                     resourceType, 
+                     resourceId, 
+                     action, 
+                     label);
+      
+      coreApi.ForwardAnswer(context, output);
+      return;
+    }
+  }
+}
+
+
+void GetAuditLogs(OrthancPluginRestOutput* output,
+                  const char* url,
+                  const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  bool isOutputCsv = false;
+
+  OrthancPlugins::HttpHeaders requestHeaders;
+  OrthancPlugins::GetHttpHeaders(requestHeaders, request);
+
+  OrthancPlugins::GetArguments getArguments;
+  OrthancPlugins::GetGetArguments(getArguments, request);
+
+  if (getArguments.find("format") != getArguments.end())
+  {
+    isOutputCsv = getArguments["format"] == "csv";
+  }
+  
+  if (!isOutputCsv && (requestHeaders.find("accept") != requestHeaders.end()))
+  {
+    std::string acceptHeader = requestHeaders["accept"];
+    Orthanc::Toolbox::ToLowerCase(acceptHeader);
+    
+    isOutputCsv = acceptHeader.find("text/csv") != std::string::npos;
+  }
+
+  OrthancPlugins::RestApiClient coreApi("/plugins/postgresql/audit-logs", request);
+  coreApi.SetAfterPlugins(true);
+  coreApi.SetRequestHeader("Accept", "application/json"); // the postgresql plugin only knows about the json format
+
+  if (request->method != OrthancPluginHttpMethod_Get)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "GET");
+    return;
+  }
+
+  Json::Value response;
+
+  if (coreApi.Execute() && coreApi.GetAnswerJson(response))
+  {
+    // transform the response: replace user-id by user-name
+    for (Json::ArrayIndex i = 0; i < response.size(); ++i)
+    {
+      const std::string& userId = response[i]["UserId"].asString();
+      std::string userName;
+      if (GetUserNameFromUserId(userName, userId))
+      {
+        response[i]["UserName"] = userName;
+      }
+      else
+      {
+        response[i]["UserName"] = userId;
+      }
+    }
+
+    if (!isOutputCsv)
+    {
+      OrthancPlugins::AnswerJson(response, output);
+    }
+    else
+    {
+      std::vector<std::string> lines;
+
+      std::vector<std::string> firstLineColumns;
+      firstLineColumns.push_back("Timestamp");
+      firstLineColumns.push_back("UserId");
+      firstLineColumns.push_back("UserName");
+      firstLineColumns.push_back("ResourceId");
+      firstLineColumns.push_back("Action");
+      firstLineColumns.push_back("LogData");
+
+      std::string firstLine;
+      Orthanc::Toolbox::JoinStrings(firstLine, firstLineColumns,";");
+      lines.push_back(firstLine);
+
+      for (Json::ArrayIndex i = 0; i < response.size(); ++i)
+      {
+        std::vector<std::string> lineColumns;
+        std::string line;
+
+        const Json::Value& log = response[i];
+        lineColumns.push_back(log["Timestamp"].asString());
+        lineColumns.push_back(log["UserId"].asString());
+        lineColumns.push_back(log["UserName"].asString());
+        lineColumns.push_back(log["ResourceId"].asString());
+        lineColumns.push_back(log["Action"].asString());
+        
+        std::string logData;
+        Orthanc::Toolbox::WriteFastJson(logData, log["LogData"]);
+        boost::replace_all(logData, "\n", "");
+        lineColumns.push_back(logData);
+
+        Orthanc::Toolbox::JoinStrings(line, lineColumns,";");
+        lines.push_back(line);
+      }
+      
+      std::string csv;
+      Orthanc::Toolbox::JoinStrings(csv, lines, "\n");
+
+      OrthancPluginSetHttpHeader(context, output, "Content-disposition", "filename=\"audit-logs.csv\"");
+      OrthancPlugins::AnswerString(csv, "text/csv", output);
+    }
+  }
+}
+
+
+OrthancPluginResourceType IdentifyResourceType(const std::string& resourceId)
+{
+  Json::Value v;
+
+  if (OrthancPlugins::RestApiGet(v, "/studies/" + resourceId, false))
+  {
+    return OrthancPluginResourceType_Study;
+  }
+  if (OrthancPlugins::RestApiGet(v, "/patients/" + resourceId, false))
+  {
+    return OrthancPluginResourceType_Patient;
+  }
+  if (OrthancPlugins::RestApiGet(v, "/series/" + resourceId, false))
+  {
+    return OrthancPluginResourceType_Series;
+  }
+  if (OrthancPlugins::RestApiGet(v, "/instances/" + resourceId, false))
+  {
+    return OrthancPluginResourceType_Instance;
+  }
+
+  return OrthancPluginResourceType_None;
+}
+
+
+void GetResourceDeletionAuditLogs(std::list<AuditLog>& auditLogs,
+                                  OrthancPluginResourceType resourceType,
+                                  const std::string& resourceId,
+                                  const OrthancPluginHttpRequest* request)
+{
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  std::string userId;
+
+  if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
+  {
+    userId = profile.userId;  
+  }
+  else
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to delete a resource with audit logs enabled.");
+  }
+  
+  Json::Value logData;
+
+  switch (resourceType)
+  {
+    case OrthancPluginResourceType_Patient:
+      {
+        auditLogs.push_back(AuditLog(userId, resourceType, resourceId, "deleted-patient", logData));
+
+        // find all child studies and add the log to each of them
+        Json::Value patient;
+        if (OrthancPlugins::RestApiGet(patient, "/patients/" + resourceId, false))
+        {
+          for (Json::ArrayIndex i = 0; i < patient["Studies"].size(); ++i)
+          {
+            auditLogs.push_back(AuditLog(userId, OrthancPluginResourceType_Study, patient["Studies"][i].asString(), "deleted-parent-patient", Json::nullValue));
+          }
+        }
+      
+      }; break;
+    case OrthancPluginResourceType_Study:
+      {
+        auditLogs.push_back(AuditLog(userId, resourceType, resourceId, "deleted-study", logData));
+      }; break;
+    case OrthancPluginResourceType_Series:
+      {
+        auditLogs.push_back(AuditLog(userId, resourceType, resourceId, "deleted-series", logData));
+
+        // add a log in the parent study 
+        Json::Value parentStudy;
+        if (OrthancPlugins::RestApiGet(parentStudy, "/series/" + resourceId + "/study", false))
+        {
+          auditLogs.push_back(AuditLog(userId, OrthancPluginResourceType_Study, parentStudy["ID"].asString(), "deleted-child-series", Json::nullValue));
+        }
+      }; break;
+    case OrthancPluginResourceType_Instance:
+      {
+        auditLogs.push_back(AuditLog(userId, resourceType, resourceId, "deleted-instance", logData));
+
+        // add a log in the parent study 
+        Json::Value parentStudy;
+        if (OrthancPlugins::RestApiGet(parentStudy, "/instances/" + resourceId + "/study", false))
+        {
+          auditLogs.push_back(AuditLog(userId, OrthancPluginResourceType_Study, parentStudy["ID"].asString(), "deleted-child-instance", Json::nullValue));
+        }
+      }; break;
+    default:
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+  }
+}
+
+void DeleteResourceWithAuditLogs(OrthancPluginRestOutput* output,
+                                 const char* url,
+                                 const OrthancPluginHttpRequest* request)
+{
+  assert(request->method == OrthancPluginHttpMethod_Delete);
+
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+  OrthancPluginResourceType resourceType = OrthancPlugins::StringToResourceType(request->groups[0]);
+  std::string resourceId = request->groups[1];
+  
+  std::list<AuditLog> auditLogs;
+  GetResourceDeletionAuditLogs(auditLogs, resourceType, resourceId, request);
+
+  OrthancPlugins::RestApiClient coreApi(url, request);
+  
+  if (coreApi.Execute())
+  {
+    RecordAuditLogs(auditLogs);
+
+    coreApi.ForwardAnswer(context, output);
+    return;
+  }
+}
+
+
+void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
+                             const char* url,
+                             const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Post)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "POST");
+  }
+
+  Json::Value payload;
+  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources"))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+  }
+
+  std::list<AuditLog> auditLogs;
+
+  for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
+  {
+    std::string resourceId = payload["Resources"][i].asString();
+    OrthancPluginResourceType resourceType = IdentifyResourceType(resourceId);
+    GetResourceDeletionAuditLogs(auditLogs, resourceType, resourceId, request);
+  }
+
+  OrthancPlugins::RestApiClient coreApi(url, request);
+  
+  if (coreApi.Execute())
+  {
+    RecordAuditLogs(auditLogs);
+
+    coreApi.ForwardAnswer(context, output);
+    return;
+  }
+
+}
+
+
 void ToolsLabels(OrthancPluginRestOutput* output,
                  const char* /*url*/,
                  const OrthancPluginHttpRequest* request)
@@ -1018,6 +1762,20 @@ void FilterLabelsFromSingleResource(OrthancPluginRestOutput* output,
                                     const OrthancPluginHttpRequest* request)
 {
   FilterLabelsFromGetCoreUrl(output, url, request, FilterLabelsInResourceObject);
+}
+
+void GetOrDeleteMainResource(OrthancPluginRestOutput* output,
+                                    const char* url,
+                                    const OrthancPluginHttpRequest* request)
+{
+  if (enableAuditLogs_ && request->method == OrthancPluginHttpMethod_Delete)
+  {
+    DeleteResourceWithAuditLogs(output, url, request);
+  }
+  else
+  {
+    FilterLabelsFromSingleResource(output, url, request);
+  }
 }
 
 void FilterLabelsFromResourceList(OrthancPluginRestOutput* output,
@@ -1216,6 +1974,8 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       Json::Value jsonProfile;
       jsonProfile["name"] = profile.name;
       jsonProfile["permissions"] = Json::arrayValue;
+      jsonProfile["groups"] = Json::arrayValue;
+      
       for (std::set<std::string>::const_iterator it = profile.permissions.begin(); it != profile.permissions.end(); ++it)
       {
         jsonProfile["permissions"].append(*it);
@@ -1223,6 +1983,15 @@ void GetUserProfile(OrthancPluginRestOutput* output,
       for (std::set<std::string>::const_iterator it = profile.authorizedLabels.begin(); it != profile.authorizedLabels.end(); ++it)
       {
         jsonProfile["authorized-labels"].append(*it);
+      }
+      for (std::set<std::string>::const_iterator it = profile.groups.begin(); it != profile.groups.end(); ++it)
+      {
+        jsonProfile["groups"].append(*it);
+      }
+
+      if (!profile.userId.empty())
+      {
+        jsonProfile["user-id"] = profile.userId;
       }
 
       OrthancPlugins::AnswerJson(jsonProfile, output);
@@ -1295,31 +2064,6 @@ void GetPermissionList(OrthancPluginRestOutput* output,
     Orthanc::SerializationToolbox::WriteSetOfStrings(response, permissionsList);
 
     OrthancPlugins::AnswerJson(response, output);
-  }
-}
-
-
-void MergeJson(Json::Value &a, const Json::Value &b) {                                                                        
-                                                                                                                  
-  if (!a.isObject() || !b.isObject())
-  {
-    return;
-  }
-
-  Json::Value::Members members = b.getMemberNames();
-
-  for (size_t i = 0; i < members.size(); i++)
-  {
-    std::string key = members[i];
-    
-    if (!a[key].isNull() && a[key].type() == Json::objectValue && b[key].type() == Json::objectValue)
-    {
-      MergeJson(a[key], b[key]);
-    } 
-    else
-    {
-      a[key] = b[key];
-    }
   }
 }
 
@@ -1425,6 +2169,9 @@ extern "C"
         }
 #endif
 
+        enableAuditLogs_ = pluginConfiguration.GetBooleanValue("EnableAuditLogs", false);
+
+
         pluginConfiguration.LookupSetOfStrings(uncheckedResources_, "UncheckedResources", false);
         pluginConfiguration.LookupListOfStrings(uncheckedFolders_, "UncheckedFolders", false);
 
@@ -1494,6 +2241,12 @@ extern "C"
             (new OrthancPlugins::PermissionParser(dicomWebRoot, oe2Root));
 
           permissionParser_->Add(pluginConfiguration.GetJson()[PERMISSIONS], authorizationParser_.get());
+
+          static const char* const EXTRA_PERMISSIONS = "ExtraPermissions";
+          if (pluginConfiguration.GetJson().isMember(EXTRA_PERMISSIONS))
+          {
+            permissionParser_->Add(pluginConfiguration.GetJson()[EXTRA_PERMISSIONS], authorizationParser_.get());
+          }
         }
         else
         {
@@ -1663,7 +2416,7 @@ extern "C"
           (new OrthancPlugins::CachedAuthorizationService
            (webService.release(), factory));
 
-        if (!urlTokenValidation.empty())
+        if (!urlTokenValidation.empty() || enableAuditLogs_)
         {
           OrthancPluginRegisterOnChangeCallback(context, OnChangeCallback);
         }
@@ -1682,10 +2435,8 @@ extern "C"
           OrthancPlugins::RegisterRestCallback<AuthSettingsRoles>("/auth/settings/roles", true);
           OrthancPlugins::RegisterRestCallback<GetPermissionList>("/auth/settings/permissions", true);
 
-          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)", true);
-          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/series/([^/]*)", true);
-          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/studies/([^/]*)", true);
-          OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/patients/([^/]*)", true);
+          OrthancPlugins::RegisterRestCallback<GetOrDeleteMainResource>("/(patients|studies|series)/([^/]*)", true);  // this includes auditLogs
+
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/patient", true);
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/study", true);
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromSingleResource>("/instances/([^/]*)/series", true);
@@ -1704,6 +2455,27 @@ extern "C"
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/instances", true);
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/series", true);
           OrthancPlugins::RegisterRestCallback<FilterLabelsFromResourceList>("/patients/([^/]*)/studies", true);
+
+          if (enableAuditLogs_)
+          {
+            OrthancPlugins::RegisterRestCallback<UploadInstancesWithAuditLogs>("/instances", true);
+            OrthancPlugins::RegisterRestCallback<AnonymizeWithAuditLogs>("/(patients|studies|series)/([^/]*)/anonymize", true);
+            OrthancPlugins::RegisterRestCallback<ModifyWithAuditLogs>("/(patients|studies|series)/([^/]*)/modify", true);
+            OrthancPlugins::RegisterRestCallback<LabelWithAuditLogs>("/(patients|studies|series)/([^/]*)/labels/([^/]*)", true);
+            OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs>("/tools/bulk-delete", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-modify", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-anonymize", true);
+            OrthancPlugins::RegisterRestCallback<GetAuditLogs>("/auth/audit-logs", true);
+
+            // Note: other "actions" that do not modify the data like download-archive are logged in the HTTP filter (see RecordResourceAccess())
+
+            // TODO
+            // /modalities/move
+            // /modalities/store
+            // /archive + create-archive
+            // /media + create-media + create-media-extended
+
+          }
         }
 
         if (!urlTokenCreationBase.empty())

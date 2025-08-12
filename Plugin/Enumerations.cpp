@@ -84,4 +84,31 @@ namespace OrthancPlugins
       throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange, std::string("Invalid access level: ") + tmp);
     }
   }
+
+  OrthancPluginResourceType StringToResourceType(const char* type)
+  {
+    std::string s(type);
+    Orthanc::Toolbox::ToUpperCase(s);
+
+    if (s == "PATIENT" || s == "PATIENTS")
+    {
+      return OrthancPluginResourceType_Patient;
+    }
+    else if (s == "STUDY" || s == "STUDIES")
+    {
+      return OrthancPluginResourceType_Study;
+    }
+    else if (s == "SERIES")
+    {
+      return OrthancPluginResourceType_Series;
+    }
+    else if (s == "INSTANCE"  || s == "IMAGE" || 
+             s == "INSTANCES" || s == "IMAGES")
+    {
+      return OrthancPluginResourceType_Instance;
+    }
+
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange, std::string("Invalid resource type '") + type + "'");
+  }
+
 }

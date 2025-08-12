@@ -37,6 +37,7 @@ namespace OrthancPlugins
   private:
     std::unique_ptr<BaseAuthorizationService>  decorated_;
     std::unique_ptr<ICache>   cache_;
+    std::unique_ptr<ICache>   cacheUserId_;
 
     std::string ComputeKey(OrthancPluginHttpMethod method,
                            const AccessedResource& access,
@@ -57,6 +58,10 @@ namespace OrthancPlugins
                                         UserProfile& profile /* out */,
                                         const Token* token,
                                         const std::string& tokenValue) ORTHANC_OVERRIDE;
+
+    virtual bool GetUserProfileFromUserId(unsigned int& validity /* out */,
+                                          UserProfile& profile /* out */,
+                                          const std::string& userId) ORTHANC_OVERRIDE;
 
     virtual bool HasUserPermissionInternal(const std::string& permission,
                                            const UserProfile& profile) ORTHANC_OVERRIDE;

@@ -1,3 +1,32 @@
+2025-08-12 - v 0.10.0
+=====================
+
+=> Recommended Orthanc version: 1.12.9 <=
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.9 <=
+=> Minimum SDK version: 1.11.3 <=
+
+
+* New configuration "ExtraPermissions" to ADD new permissions to
+  the default "Permissions" entries.
+* Improved handling of "Anonymous" user profiles (when no auth-tokens
+  are provided):  The plugin will now request the auth-service to
+  get an anonymous user profile even if there are no auth-tokens in the
+  HTTP request.
+* The User profile can now contain a "groups" field if the auth-service
+  provides it.
+* The User profile can now contain an "id" field if the auth-service
+  provides it.
+* New experimental feature: audit-logs
+  - Enabled by the "EnableAuditLogs" configuration.
+  - Audit-logs are currently handled by the PostgreSQL plugin and can be 
+    browsed through the route /auth/audit-logs.
+  - New default permission "audit-logs" to grant access to the 
+    "/auth/audit-logs" route.
+* Fix: The "server-id" field is now included in all requests sent to the
+  auth-service.
+
+
 2025-07-14 - v 0.9.4
 ====================
 
@@ -190,7 +219,8 @@
 ====================
 
 * BREAKING-CHANGE: the API between the authorization plugin and the 
-  WebService has slightly changed.  Check the samples in the README (TODO).
+  WebService has slightly changed.  Check the samples in this project:
+  https://github.com/orthanc-team/orthanc-auth-service.
   - "identifier" has been renamed into "server-id"
 * new user-permission based authorization model.  This is enabled if you
   define the new "WebServiceUserProfileUrl" configuration.

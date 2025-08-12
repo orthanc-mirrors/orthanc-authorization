@@ -61,8 +61,10 @@ namespace OrthancPlugins
     struct UserProfile
     {
       std::string name;
+      std::string userId;
       std::set<std::string> permissions;
       std::set<std::string> authorizedLabels;
+      std::set<std::string> groups;
 
       // the source token key/value that identified the user
       TokenType   tokenType;
@@ -89,13 +91,15 @@ namespace OrthancPlugins
                                 const Token& token,
                                 const std::string& tokenValue) = 0;
 
+    virtual bool GetUserProfileFromUserId(unsigned int& validity /* out */,
+                                          UserProfile& profile /* out */,
+                                          const std::string& userId) = 0;
+
     virtual bool GetAnonymousUserProfile(unsigned int& validity /* out */,
                                          UserProfile& profile /* out */) = 0;
 
     virtual bool HasUserPermission(const std::set<std::string>& anyOfPermissions,
                                    const UserProfile& profile) = 0;
-
-    virtual bool HasAnonymousUserPermission(const std::set<std::string>& anyOfPermissions) = 0;
 
     virtual bool CreateToken(CreatedToken& response,
                              const std::string& tokenType, 

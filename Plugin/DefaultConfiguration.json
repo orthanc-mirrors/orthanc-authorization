@@ -128,8 +128,10 @@
             // permission settings
             ["put", "^/auth/settings/roles$", "admin-permissions"],
             ["get", "^/auth/settings/roles$", "admin-permissions"],
-            ["get", "^/auth/settings/permissions$", "admin-permissions"]
- 
+            ["get", "^/auth/settings/permissions$", "admin-permissions"],
+
+            // audit-logs
+            ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"]
         ]
     }
 }

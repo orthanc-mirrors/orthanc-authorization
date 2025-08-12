@@ -30,7 +30,7 @@ namespace OrthancPlugins
   private:
     std::string username_;
     std::string password_;
-    std::string identifier_;
+    std::string serverId_;
     std::string userProfileUrl_;
     std::string tokenValidationUrl_;
     std::string tokenDecoderUrl_;
@@ -111,5 +111,8 @@ namespace OrthancPlugins
     
     static void FromJson(UserProfile& profile, const Json::Value& input);
 
+    virtual bool GetUserProfileFromUserId(unsigned int& validity,
+                                          UserProfile& profile /* out */,
+                                          const std::string& userId) ORTHANC_OVERRIDE;
   };
 }

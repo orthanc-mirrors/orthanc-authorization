@@ -40,7 +40,7 @@ set(ORTHANC_FRAMEWORK_ROOT "" CACHE STRING "Path to the Orthanc source directory
 
 # Advanced parameters to fine-tune linking against system libraries
 set(USE_SYSTEM_ORTHANC_SDK ON CACHE BOOL "Use the system version of the Orthanc plugin SDK")
-set(ORTHANC_SDK_VERSION "1.12.4" CACHE STRING "Version of the Orthanc plugin SDK to use, if not using the system version (can be \"1.11.3\", \"1.12.4\", or \"framework\")")
+set(ORTHANC_SDK_VERSION "1.12.9" CACHE STRING "Version of the Orthanc plugin SDK to use, if not using the system version (can be \"1.11.3\", \"1.12.4\", \"1.12.9\",or \"framework\")")
 
 # Download and setup the Orthanc framework
 include(${CMAKE_SOURCE_DIR}/Resources/Orthanc/CMake/DownloadOrthancFramework.cmake)
@@ -88,6 +88,8 @@ if (STATIC_BUILD OR NOT USE_SYSTEM_ORTHANC_SDK)
     include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.11.3)
   elseif (ORTHANC_SDK_VERSION STREQUAL "1.12.4")
     include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.12.4)
+  elseif (ORTHANC_SDK_VERSION STREQUAL "1.12.9")
+    include_directories(${CMAKE_SOURCE_DIR}/Resources/Orthanc/Sdk-1.12.9)
   elseif (ORTHANC_SDK_VERSION STREQUAL "framework")
     include_directories(${ORTHANC_FRAMEWORK_ROOT}/../../OrthancServer/Plugins/Include)
   else()
