@@ -1,3 +1,14 @@
+2025-08-13 - v 0.10.1
+=====================
+
+=> Recommended Orthanc version: 1.12.9 <=
+=> Minimum Orthanc version: 1.11.3 <=
+=> Recommended SDK version: 1.12.9 <=
+=> Minimum SDK version: 1.11.3 <=
+
+* Fix audit-logs export in CSV format.
+
+
 2025-08-12 - v 0.10.0
 =====================
 

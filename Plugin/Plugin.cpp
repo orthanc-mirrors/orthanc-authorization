@@ -1472,7 +1472,8 @@ void GetAuditLogs(OrthancPluginRestOutput* output,
       firstLineColumns.push_back("UserName");
       firstLineColumns.push_back("ResourceId");
       firstLineColumns.push_back("Action");
-      firstLineColumns.push_back("LogData");
+      firstLineColumns.push_back("JsonLogData");
+      firstLineColumns.push_back("Base64LogData");
 
       std::string firstLine;
       Orthanc::Toolbox::JoinStrings(firstLine, firstLineColumns,";");
@@ -1490,10 +1491,26 @@ void GetAuditLogs(OrthancPluginRestOutput* output,
         lineColumns.push_back(log["ResourceId"].asString());
         lineColumns.push_back(log["Action"].asString());
         
-        std::string logData;
-        Orthanc::Toolbox::WriteFastJson(logData, log["LogData"]);
-        boost::replace_all(logData, "\n", "");
-        lineColumns.push_back(logData);
+        if (log.isMember("JsonLogData"))
+        {
+          std::string logData;
+          Orthanc::Toolbox::WriteFastJson(logData, log["JsonLogData"]);
+          boost::replace_all(logData, "\n", "");
+          lineColumns.push_back(logData);
+        }
+        else
+        {
+          lineColumns.push_back("null");
+        }
+
+        if (log.isMember("Base64LogData"))
+        {
+          lineColumns.push_back(log["Base64LogData"].asString());
+        }
+        else
+        {
+          lineColumns.push_back("null");
+        }
 
         Orthanc::Toolbox::JoinStrings(line, lineColumns,";");
         lines.push_back(line);
