@@ -133,5 +133,11 @@
             // audit-logs
             ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"]
         ]
+
+        // If you just need to add a few permissions, while preserving the default ones,
+        // You may just not specify any "Permissions" field and add a few entries in the ExtraPermissions
+        // "ExtraPermissions" : [
+        //     ["post", "^/my-plugin/do-something$", "all|upload"]
+        // ]
     }
 }
