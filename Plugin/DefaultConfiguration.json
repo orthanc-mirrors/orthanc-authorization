@@ -131,7 +131,11 @@
             ["get", "^/auth/settings/permissions$", "admin-permissions"],
 
             // audit-logs
-            ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"]
+            ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"],
+
+            // add-delete modalities through the Rest API
+            ["put", "^/modalities/(.*)$", "admin-permissions"],
+            ["delete", "^/modalities/(.*)$", "admin-permissions"]
         ]
 
         // If you just need to add a few permissions, while preserving the default ones,
