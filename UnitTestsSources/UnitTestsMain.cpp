@@ -30,6 +30,10 @@
 #include "../Plugin/MemoryCache.h"
 #include "../Plugin/PermissionParser.h"
 #include "../Plugin/ResourceHierarchyCache.h"
+#include "../Resources/Orthanc/Plugins/OrthancPluginCppWrapper.h"
+#include <Logging.h>
+#include <EmbeddedResources.h>
+
 
 extern void AdjustToolsFindQueryLabels(Json::Value& query, const OrthancPlugins::IAuthorizationService::UserProfile& profile);
 
@@ -586,108 +590,71 @@ TEST(ToolsFindLabels, AdjustQueryForUserWithAuthorizedLabelsRestrictions)
   }
 }
 
-// TEST(ToolsFindLabels, AdjustQueryForUserWithForbiddenLabelsRestrictions)
-// {
-//   // user who has forbidden access to "b" and "c"
-//   OrthancPlugins::IAuthorizationService::UserProfile profile;
-//   profile.forbiddenLabels.insert("b");
-//   profile.forbiddenLabels.insert("c");
+void TestPermissions(PermissionParser& permParser, const std::string& uri, OrthancPluginHttpMethod method, const std::string& expectedPermissions)
+{
+  LOG(WARNING) << "testing permission on '" << uri << "'";
+  std::set<std::string> permissions;
+  std::vector<std::string> expectedPermissions_;
+  Orthanc::Toolbox::SplitString(expectedPermissions_, expectedPermissions, '|');
+  std::string matchedPattern;
 
-//   { // no labels before transformation -> "b", "c" label after (with a 'None' constraint)
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
+  ASSERT_TRUE(permParser.Parse(permissions, matchedPattern, method, uri));
+  ASSERT_EQ(expectedPermissions_.size(), permissions.size());
 
-//     AdjustToolsFindQueryLabels(query, profile);
+  for (size_t i = 0; i < expectedPermissions_.size(); ++i)
+  {
+    ASSERT_TRUE(permissions.find(expectedPermissions_[i]) != permissions.end());
+  }
+}
 
-//     ASSERT_EQ(2u, query["Labels"].size());
-//     ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
-//     ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
-//     ASSERT_EQ("None", query["LabelsConstraint"].asString());
-//   }
+TEST(PermissionParser, Basic)
+{
+  MemoryCache::Factory factory(10);
+  DefaultAuthorizationParser authorizationParser(factory, "/dicom-web/");
 
-//   { // missing LabelsConstraint -> throw
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("a");
+  std::string defaultConfigurationFileContent;
+  Orthanc::EmbeddedResources::GetFileResource(defaultConfigurationFileContent, Orthanc::EmbeddedResources::DEFAULT_CONFIGURATION);
+  Json::Value pluginJsonDefaultConfiguration;
+  OrthancPlugins::ReadJsonWithoutComments(pluginJsonDefaultConfiguration, defaultConfigurationFileContent);
+  
+  PermissionParser permParser("/dicom-web/", "/ui/");
 
-//     ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
-//   }
+  permParser.Add(pluginJsonDefaultConfiguration["Authorization"]["Permissions"], &authorizationParser);
 
-//   { // 'All' label constraint can not be modified for user with forbidden labels
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("b");
-//     query["Labels"].append("c");
-//     query["LabelsConstraint"] = "All";
+  
 
-//     ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
-//   }
+  { // test modalities
 
-//   { // 'Any' label constraint can not be modified for user with forbidden labels
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("b");
-//     query["Labels"].append("c");
-//     query["LabelsConstraint"] = "Any";
+    TestPermissions(permParser, "/modalities", OrthancPluginHttpMethod_Get, "all|send|q-r-remote-modalities");  // list modalities
+    TestPermissions(permParser, "/modalities/alias", OrthancPluginHttpMethod_Put, "admin-permissions");  // add modalities
+    TestPermissions(permParser, "/modalities/alias", OrthancPluginHttpMethod_Delete, "admin-permissions");  // delete modalities
+    TestPermissions(permParser, "/modalities/alias/move", OrthancPluginHttpMethod_Post, "all|q-r-remote-modalities");  // trigger a c-move on distant modality
+    TestPermissions(permParser, "/modalities/alias/store", OrthancPluginHttpMethod_Post, "all|send");  // trigger a c-move on distant modality
+    TestPermissions(permParser, "/modalities/alias/store-straight", OrthancPluginHttpMethod_Post, "all|send");  // trigger a c-move on distant modality
+    TestPermissions(permParser, "/modalities/alias/echo", OrthancPluginHttpMethod_Post, "all|send|q-r-remote-modalities");  // echo
+    TestPermissions(permParser, "/modalities/alias/configuration", OrthancPluginHttpMethod_Get, "all|send|q-r-remote-modalities");  // see configuration
 
-//     ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
-//   }
+  }
 
-//   { // 'Any' label constraint can not be modified for user with forbidden labels
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("a");
-//     query["LabelsConstraint"] = "Any";
+            //   ["post", "^/modalities/(.*)/echo$", "all|send|q-r-remote-modalities"],
+            // ["post", "^/modalities/(.*)/query$", "all|q-r-remote-modalities"],
+            // ["get", "^/queries/([a-f0-9-]+)/answers$", "all|q-r-remote-modalities"],
+            // ["get", "^/queries/([a-f0-9-]+)/answers/([0-9]+)/content$", "all|q-r-remote-modalities"],
+            // ["post", "^/queries/([a-f0-9-]+)/answers/([0-9]+)/retrieve$", "all|q-r-remote-modalities"],
+            // ["post", "^/modalities/(.*)/move$", "all|q-r-remote-modalities"],
 
-//     ASSERT_THROW(AdjustToolsFindQueryLabels(query, profile), Orthanc::OrthancException);
-//   }
-
-
-//   { // 'None' label constraint are modified to always contain at least all forbidden_labels of the user
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("b");
-//     query["LabelsConstraint"] = "None";
-
-//     AdjustToolsFindQueryLabels(query, profile);
-//     ASSERT_EQ(2u, query["Labels"].size());
-//     ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
-//     ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
-//     ASSERT_EQ("None", query["LabelsConstraint"].asString());
-//   }
-
-//   { // 'None' label constraint are modified to always contain at least all forbidden_labels of the user
-//     Json::Value query;
-//     query["Query"] = Json::objectValue;
-//     query["Query"]["PatientID"] = "*";
-//     query["Labels"] = Json::arrayValue;
-//     query["Labels"].append("d");
-//     query["LabelsConstraint"] = "None";
-
-//     AdjustToolsFindQueryLabels(query, profile);
-//     ASSERT_EQ(3u, query["Labels"].size());
-//     ASSERT_TRUE(IsInJsonArray("b", query["Labels"]));
-//     ASSERT_TRUE(IsInJsonArray("c", query["Labels"]));
-//     ASSERT_TRUE(IsInJsonArray("d", query["Labels"]));
-//     ASSERT_EQ("None", query["LabelsConstraint"].asString());
-//   }
-// }
+}
 
 }
 
 int main(int argc, char **argv)
 {
+  Orthanc::Logging::Initialize();
+
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  int result = RUN_ALL_TESTS();
+
+  Orthanc::Logging::Finalize();
+
+  return result;
 }

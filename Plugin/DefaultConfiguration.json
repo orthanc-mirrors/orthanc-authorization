@@ -94,8 +94,9 @@
             ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],
 
             // interacting with peers/modalities/dicomweb
-            ["post", "^/(peers|modalities)/(.*)/store$", "all|send"],
+            ["post", "^/(peers|modalities)/(.*)/(store|store-straight)$", "all|send"],
             ["get" , "^/(peers|modalities)$", "all|send|q-r-remote-modalities"],
+            ["get" , "^/(peers|modalities)/(.*)/configuration$", "all|send|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/echo$", "all|send|q-r-remote-modalities"],
             ["post", "^/modalities/(.*)/query$", "all|q-r-remote-modalities"],
             ["get", "^/queries/([a-f0-9-]+)/answers$", "all|q-r-remote-modalities"],
