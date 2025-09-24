@@ -2357,6 +2357,13 @@ extern "C"
             tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
           }
 
+          if (standardConfigurations.find("stl") != standardConfigurations.end())
+          {
+            uncheckedFolders_.push_back("/stl/");
+
+            tokens_.insert(OrthancPlugins::Token(OrthancPlugins::TokenType_HttpHeader, "Authorization"));
+          }
+
         }
 
         std::string checkedLevelString;
