@@ -17,11 +17,11 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 2.8...4.0)
 
 project(OrthancAuthorization)
 
-set(ORTHANC_PLUGIN_VERSION "mainline")
+set(ORTHANC_PLUGIN_VERSION "0.10.2")
 
 if (ORTHANC_PLUGIN_VERSION STREQUAL "mainline")
   set(ORTHANC_FRAMEWORK_VERSION "mainline")
