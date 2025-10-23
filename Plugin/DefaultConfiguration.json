@@ -67,10 +67,13 @@
             ["post", "^/tools/count-resources$", "all|view"],
             ["get" , "^/(patients|studies|series|instances)(|/)", "all|view"],
             ["get" , "^/statistics$", "all|view"],
+            ["get" , "^/tools/metrics-prometheus$", "all|view"],
             ["get" , "^/changes$", "all|view"],
             ["get" , "^/system$", "all|view"],
             ["get" , "^/plugins$", "all|view"],
             ["get" , "^/plugins/(.*)$", "all|view"],
+            ["get" , "^/worklists$", "all|view|worklists"],
+            ["get" , "^/worklists/(.*)$", "all|view|worklists"],
 
             // single resources patterns (SINGLE_RESOURCE_PATTERNS is an alias for all single resource patterns defined in https://orthanc.uclouvain.be/hg/orthanc-authorization/file/tip/Plugin/DefaultAuthorizationParser.cpp)
             // (a user must have access to the route + have an authorized label to access the resource)
@@ -137,7 +140,11 @@
 
             // add-delete modalities through the Rest API
             ["put", "^/modalities/(.*)$", "admin-permissions"],
-            ["delete", "^/modalities/(.*)$", "admin-permissions"]
+            ["delete", "^/modalities/(.*)$", "admin-permissions"],
+
+            // create-delete worklists 
+            ["post" , "^/worklists/create$", "all|worklists"],
+            ["delete" , "^/worklists/(.*)$", "all|worklists"]
         ]
 
         // If you just need to add a few permissions, while preserving the default ones,
