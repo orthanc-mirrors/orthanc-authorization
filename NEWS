@@ -8,7 +8,7 @@ Pending changes in the mainline
 2025-10-10 - v 0.10.2
 =====================
 
-* New default permissions to add/delete modalities through the Rest API
+* New default permissions to add/delete modalities through the REST API
   https://discourse.orthanc-server.org/t/managing-modalities-using-the-rest-api-and-keycloak/6137
 * New standard configuration "stl"
 
@@ -251,9 +251,9 @@ Pending changes in the mainline
 * new user-permission based authorization model.  This is enabled if you
   define the new "WebServiceUserProfileUrl" configuration.
 * new "orthanc-explorer-2" StandardConfigurations
-* new GET "auth/user/profile" Rest API route to retrieve user permissions
-* new PUT "auth/tokens/{token-type}" Rest API route to create tokens
-* new POST "auth/tokens/decode" Rest API route to decode tokens
+* new GET "auth/user/profile" REST API route to retrieve user permissions
+* new PUT "auth/tokens/{token-type}" REST API route to create tokens
+* new POST "auth/tokens/decode" REST API route to decode tokens
 * these 3 new routes required an updated auth-web-service.
 * SECURITY FIX: in prior versions, it was possible to browse remote
   dicom-web servers without being authenticated.  (The API routes

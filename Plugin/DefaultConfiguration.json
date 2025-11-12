@@ -138,7 +138,7 @@
             // audit-logs
             ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"],
 
-            // add-delete modalities through the Rest API
+            // add-delete modalities through the REST API
             ["put", "^/modalities/(.*)$", "admin-permissions"],
             ["delete", "^/modalities/(.*)$", "admin-permissions"],
 
