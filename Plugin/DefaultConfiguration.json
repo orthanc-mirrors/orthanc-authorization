@@ -110,7 +110,7 @@
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["post" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
 
-            // DICOMWeb QIDO-RS            
+            // DICOMweb QIDO-RS
             ["get" , "^/DICOM_WEB_ROOT/(studies|series|instances)(|/)$", "all|view"],
 
             // modifications/anonymization
