@@ -111,7 +111,7 @@
             ["get" , "^/DICOM_WEB_ROOT/servers$", "all|send|q-r-remote-modalities"],
             ["post" , "^/DICOM_WEB_ROOT/(servers)/(.*)/stow$", "all|send"],
 
-            // DICOMWeb QIDO-RS            
+            // DICOMweb QIDO-RS
             ["get" , "^/DICOM_WEB_ROOT/(studies|series|instances)(|/)$", "all|view"],
 
             // modifications/anonymization
@@ -139,7 +139,7 @@
             // audit-logs
             ["get", "^/auth/audit-logs$", "admin-permissions|audit-logs"],
 
-            // add-delete modalities through the Rest API
+            // add-delete modalities through the REST API
             ["put", "^/modalities/(.*)$", "admin-permissions"],
             ["delete", "^/modalities/(.*)$", "admin-permissions"],
 
