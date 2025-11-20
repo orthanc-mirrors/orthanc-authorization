@@ -60,7 +60,8 @@
         // The default configuration is suitable for Orthanc-Explorer-2 (see https://github.com/orthanc-team/orthanc-auth-service)
         "Permissions" : [
             ["post", "^/auth/tokens/decode$", ""],
-            ["post", "^/tools/lookup$", ""], // currently used to authorize downloads in Stone (to map the StudyInstanceUID into an OrthancID.  Not ideal -> we should define a new API that has the resource ID in the path to be able to check it at resource level) but, on another hand, you do not get any Patient information from this route
+            ["post", "^/tools/lookup$", ""],            // currently used to authorize downloads in Stone (to map the StudyInstanceUID into an OrthancID.  Not ideal -> we should define a new API that has the resource ID in the path to be able to check it at resource level) but, on another hand, you do not get any Patient information from this route
+            ["get", "^/tools/generate-uid(.*)$", ""],   // used in OE2 when generating worklists but there are no sensitive data to retrieve -> allow all
 
             // elemental browsing in OE2
             ["post", "^/tools/find$", "all|view"],
@@ -142,8 +143,9 @@
             ["put", "^/modalities/(.*)$", "admin-permissions"],
             ["delete", "^/modalities/(.*)$", "admin-permissions"],
 
-            // create-delete worklists 
+            // create-edit-delete worklists 
             ["post" , "^/worklists/create$", "all|worklists"],
+            ["put", "^/worklists/(.*)$", "all|worklists"],
             ["delete" , "^/worklists/(.*)$", "all|worklists"]
         ]
 
