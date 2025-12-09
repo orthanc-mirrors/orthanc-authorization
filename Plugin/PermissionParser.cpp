@@ -77,7 +77,7 @@ namespace OrthancPlugins
   PermissionParser::~PermissionParser()
   {
     for (std::list<PermissionPattern*>::iterator it = permissionsPattern_.begin();
-         it != permissionsPattern_.begin(); ++it)
+         it != permissionsPattern_.end(); ++it)
     {
       assert(*it != NULL);
       delete *it;
