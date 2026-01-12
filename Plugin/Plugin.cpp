@@ -1225,7 +1225,17 @@ void UploadInstancesWithAuditLogs(OrthancPluginRestOutput* output,
 
     if (GetUserProfileInternal(profile, request) && coreApi.GetAnswerJson(coreResponse))
     {
-      RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, coreResponse["ParentStudy"].asString(), "uploaded-instance", coreResponse["ID"].asString());
+      if (coreResponse.isArray())
+      {
+        for (Json::ArrayIndex i = 0; i < coreResponse.size(); ++i)
+        {
+          RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, coreResponse[i]["ParentStudy"].asString(), "uploaded-instance", coreResponse[i]["ID"].asString());
+        }
+      }
+      else if (coreResponse["ID"].isString())
+      {
+        RecordAuditLog(profile.userId, OrthancPluginResourceType_Study, coreResponse["ParentStudy"].asString(), "uploaded-instance", coreResponse["ID"].asString());
+      }
     }
     else
     {
