@@ -2,6 +2,8 @@ Pending changes in the mainline
 ===============================
 
 * Now recording audit-logs when uploading a zip.
+* New default permissions for sending emails when sharing studies.
+
 
 2025-11-20 - v 0.10.3
 =====================

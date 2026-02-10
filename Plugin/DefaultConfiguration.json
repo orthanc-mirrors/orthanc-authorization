@@ -86,6 +86,8 @@
 
             // share a link to open a study
             ["put", "^/auth/tokens/(stone-viewer-publication|meddream-viewer-publication|osimis-viewer-publication|ohif-viewer-publication|volview-viewer-publication)$", "all|share"],
+            ["get", "^/ui/api/emails/templates/(.*)$", "all|share"],
+            ["post", "^/ui/api/emails/send$", "all|share"],
 
             // uploads
             ["post", "^/instances$", "all|upload"],
