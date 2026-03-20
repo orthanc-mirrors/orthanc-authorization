@@ -1021,7 +1021,7 @@ void FilterLabelsInResourceArray(Json::Value& resources, const OrthancPlugins::I
 }
 
 
-void CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, const OrthancPluginHttpRequest* request)
+bool CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, const OrthancPluginHttpRequest* request)
 {
   // make sur the user has access to all resources listed in "Resources" (with potentialy a "Level" field to help identify the resources)
 
@@ -1033,13 +1033,13 @@ void CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, cons
 
   if (HasAccessToAllLabels(profile))  // these guys can do whatever they want
   {
-    return;
+    return true;
   }
 
   Json::Value payload;
   if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources") || !payload["Resources"].isArray())
   {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload with a 'Resources' field was expected");
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload with a 'Resources' string array field was expected");
   }
 
   Orthanc::ResourceType levelInPayload = Orthanc::ResourceType_Instance; // random value
@@ -1076,9 +1076,13 @@ void CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, cons
 
     if (!granted)
     {
-      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: the user does not have access to resource " + resourceId);
+      LOG(WARNING) << "Auth plugin: the user does not have access to resource " << resourceId;
+      OrthancPlugins::AnswerHttpError(Orthanc::HttpStatus_403_Forbidden, output);
+      return false;
     }
   }
+
+  return true;
 }
 
 
@@ -1305,6 +1309,49 @@ void UploadInstancesWithAuditLogs(OrthancPluginRestOutput* output,
   }
 }
 
+void RecordAuditLogsForStartOfModificationJob(Json::Value& payload,
+                                              const std::string& userId,
+                                              OrthancPluginResourceType resourceType,
+                                              const std::string& resourceId,
+                                              const Json::Value& resourcesIds,
+                                              bool isModification
+                                              )
+{
+  Json::Value logData;
+  logData[KEY_PAYLOAD] = payload;
+  
+  // add UserData to the job payload to know who has modified the data.  The handling of the log will then happen in the OnChange handler
+  SetUserIdInUserdata(payload, userId);
+  payload["UserData"]["ResourcesIds"] = resourcesIds;
+  // std::string modifiedPayload = payload.toStyledString();
+  // coreApi.SetRequestBody(modifiedPayload);
+
+  if (isModification)
+  {
+    // log the tags before modification (but not for anonymizations)
+    Json::Value resourceBefore;
+    if (resourceType == OrthancPluginResourceType_Study && OrthancPlugins::RestApiGet(resourceBefore, "/studies/" + resourceId, false))
+    {
+      Json::Value studyTagsBefore = resourceBefore["MainDicomTags"];
+      Json::Value patientTagsBefore = resourceBefore["PatientMainDicomTags"];
+      MergeJson(studyTagsBefore, patientTagsBefore);
+
+      logData[KEY_BEFORE_TAGS] = studyTagsBefore;
+    }
+    else
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Auth plugin: TODO: unable to handle anonymize/modify other levels than studies with audit logs enabled.");
+    }
+  }
+
+  // in any case, record that this resource is being modified/anonymized and record the payload
+  RecordAuditLog(userId, 
+                  resourceType, 
+                  resourceId, 
+                  (isModification ? "start-modification-job" : "start-anonymization-job"), 
+                  logData);
+
+}
 
 void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
                                   const char* url,
@@ -1323,11 +1370,10 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
     throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
   }
 
-  // Either there is a userId in UserData or the request comes from a user with profile
+  // Either there is a userId in UserData (that can be used only for the audit logs); this happens when the request is sent e.g from a python plugin
+  // or the request comes from a user with a profile
   OrthancPlugins::IAuthorizationService::UserProfile profile;
   std::string userId;
-
-  // LOG(WARNING) << payload.toStyledString();
 
   if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
   {
@@ -1339,40 +1385,12 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
   }
 
   if ((payload.isMember("Synchronous") && !payload["Synchronous"].asBool())
-    || (payload.isMember("Asynchronous") && !payload["Asynchronous"].asBool()))
+    || (payload.isMember("Asynchronous") && payload["Asynchronous"].asBool()))
   {
-    Json::Value logData;
-    logData[KEY_PAYLOAD] = payload;
-    
-    // add UserData to the job payload to know who has modified the data.  The handling of the log will then happen in the OnChange handler
-    SetUserIdInUserdata(payload, userId);
-    std::string modifiedPayload = payload.toStyledString();
-    coreApi.SetRequestBody(modifiedPayload);
-
-    if (isModification)
-    {
-      // log the tags before modification (but not for anonymizations)
-      Json::Value resourceBefore;
-      if (resourceType == OrthancPluginResourceType_Study && OrthancPlugins::RestApiGet(resourceBefore, "/studies/" + resourceId, false))
-      {
-        Json::Value studyTagsBefore = resourceBefore["MainDicomTags"];
-        Json::Value patientTagsBefore = resourceBefore["PatientMainDicomTags"];
-        MergeJson(studyTagsBefore, patientTagsBefore);
-
-        logData[KEY_BEFORE_TAGS] = studyTagsBefore;
-      }
-      else
-      {
-        throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError, "Auth plugin: TODO: unable to handle anonymize/modify other levels than studies with audit logs enabled.");
-      }
-    }
-
-    // in any case, record that this resource is being modified/anonymized and record the payload
-    RecordAuditLog(userId, 
-                   resourceType, 
-                   resourceId, 
-                   (isModification ? "start-modification-job" : "start-anonymization-job"), 
-                   logData);
+    Json::Value emptyResourcesIds;
+    Json::Value modifiedPayload = payload;
+    RecordAuditLogsForStartOfModificationJob(modifiedPayload, userId, resourceType, resourceId, emptyResourcesIds, isModification);
+    coreApi.SetRequestBody(modifiedPayload.toStyledString());
 
     if (coreApi.Execute())
     {
@@ -1381,6 +1399,38 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
   }
   else
   {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Synchronous modifications/anonymizations are currently not supported when audit-logs are enabled, use Asynchronous:true");
+  }
+}
+
+
+template <bool enableAudiLogs, bool isModification>
+void BulkModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
+                                      const char* url,
+                                      const OrthancPluginHttpRequest* request)
+{
+  OrthancPluginContext* context = OrthancPlugins::GetGlobalContext();
+
+  if (request->method != OrthancPluginHttpMethod_Post)
+  {
+    OrthancPluginSendMethodNotAllowed(context, output, "POST");
+  }
+
+  Json::Value payload;
+  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources"))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
+  }
+
+  if (!CheckHasAccessToAllResourcesInPayload(output, request))
+  {
+    return;
+  }
+
+  OrthancPlugins::RestApiClient coreApi(url, request);
+
+  if (!enableAudiLogs)
+  { // now that we have checked that we could access all resources, simply forward to core
     Json::Value coreResponse;
 
     // if it is synchronous, perform the modification and record the log directly
@@ -1388,21 +1438,45 @@ void ModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
     {
       coreApi.ForwardAnswer(context, output);
     }
-    
-    if (coreApi.GetAnswerJson(coreResponse))
-    {
-      LOG(WARNING) << "TODO AUDIT-LOG synchronous modification " << coreResponse.toStyledString(); // TODO 
-    }
+    return;
+  }
+  else
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Bulkd modifications/anonymizations are currently not supported when audit-logs are enabled");
+
+    // this code needs to be polished in the OnChange to map the new modifiedResources on the originalResources
+    // // Either there is a userId in UserData (that can be used only for the audit logs); this happens when the request is sent e.g from a python plugin
+    // // or the request comes from a user with a profile
+    // OrthancPlugins::IAuthorizationService::UserProfile profile;
+    // std::string userId;
+
+    // if (GetUserProfileInternal(profile, request) && !profile.userId.empty())
+    // {
+    //   userId = profile.userId;  
+    // } 
+    // else if (!GetUserIdFromUserData(userId, payload))
+    // {
+    //   throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: no user profile or UserData found, unable to handle anonymize/modify with audit logs enabled.");
+    // }
+
+    // if ((payload.isMember("Synchronous") && !payload["Synchronous"].asBool())
+    //   || (payload.isMember("Asynchronous") && payload["Asynchronous"].asBool()))
+    // {
+    //   Json::Value modifiedPayload = payload;
+    //   RecordAuditLogsForStartOfModificationJob(modifiedPayload, userId, resourceType, resourceId, payload["Resources"], isModification);
+    //   coreApi.SetRequestBody(modifiedPayload.toStyledString());
+
+    //   if (coreApi.Execute())
+    //   {
+    //     coreApi.ForwardAnswer(context, output);
+    //   }
+    // }
+    // else
+    // {
+    //   throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Synchronous modifications/anonymizations are currently not supported when audit-logs are enabled, use Asynchronous:true");
+    // }
   }
 }
-
-void BulkModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
-                                      const char* url,
-                                      const OrthancPluginHttpRequest* request)
-{
-  throw Orthanc::OrthancException(Orthanc::ErrorCode_NotImplemented, "Auth plugin: Not implemented: Currently unable to perform bulk modification/anonymization with audit logs enabled.");
-}
-
 
 void ModifyWithAuditLogs(OrthancPluginRestOutput* output,
                          const char* url,
@@ -1732,7 +1806,10 @@ void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
     throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
   }
 
-  CheckHasAccessToAllResourcesInPayload(output, request);
+  if (!CheckHasAccessToAllResourcesInPayload(output, request))
+  {
+    return;
+  }
 
   std::list<AuditLog> auditLogs;
 
@@ -1750,7 +1827,10 @@ void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
   
   if (coreApi.Execute())
   {
-    RecordAuditLogs(auditLogs);
+    if (enableAudiLogs)
+    {
+      RecordAuditLogs(auditLogs);
+    }
 
     coreApi.ForwardAnswer(context, output);
     return;
@@ -1842,10 +1922,14 @@ void FilterLabelsFromGetCoreUrl(OrthancPluginRestOutput* output,
 
     OrthancPlugins::RestApiClient coreApi(url, request);
 
-    if (coreApi.Execute() && coreApi.GetAnswerJson(response))
+    if (coreApi.Execute() && coreApi.GetHttpStatus() == 200 && coreApi.GetAnswerJson(response))
     {
       jsonLabelsFilter(response, profile);
       OrthancPlugins::AnswerJson(response, output);
+    }
+    else
+    {
+      OrthancPlugins::AnswerHttpError(coreApi.GetHttpStatus(), output);
     }
   }
 }
@@ -2564,8 +2648,8 @@ extern "C"
             OrthancPlugins::RegisterRestCallback<ModifyWithAuditLogs>("/(patients|studies|series)/([^/]*)/modify", true);
             OrthancPlugins::RegisterRestCallback<LabelWithAuditLogs>("/(patients|studies|series)/([^/]*)/labels/([^/]*)", true);
             OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs<true> >("/tools/bulk-delete", true);
-            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-modify", true);
-            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-anonymize", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs<true, true> >("/tools/bulk-modify", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs<true, false> >("/tools/bulk-anonymize", true);
             OrthancPlugins::RegisterRestCallback<GetAuditLogs>("/auth/audit-logs", true);
 
             // Note: other "actions" that do not modify the data like download-archive are logged in the HTTP filter (see RecordResourceAccess())
@@ -2580,6 +2664,8 @@ extern "C"
           else
           {
             OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs<false> >("/tools/bulk-delete", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs<false, true> >("/tools/bulk-modify", true);
+            OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs<false, false> >("/tools/bulk-anonymize", true);
           }
         }
 

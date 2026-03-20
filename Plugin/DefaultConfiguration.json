@@ -119,6 +119,8 @@
             // modifications/anonymization
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/(modify|merge)(.*)$", "all|modify"],
             ["post", "^/(patients|studies|series|instances)/([a-f0-9-]+)/anonymize(.*)$", "all|anonymize"],
+            ["post" , "^/tools/bulk-modify$", "all|modify"],
+            ["post" , "^/tools/bulk-anonymize$", "all|anonymize"],
 
             // labels
             ["get", "^/tools/labels$", "all|view|edit-labels"],

@@ -3,6 +3,7 @@ Pending changes in the mainline
 
 * Now recording audit-logs when uploading a zip.
 * New default permissions for sending emails when sharing studies.
+* Added support for /tools/bulk-modify and /tools/bulk-anonymize
 * Fix: in /tools/bulk-delete, a user was able to delete resources
   he does not have access to.
 
