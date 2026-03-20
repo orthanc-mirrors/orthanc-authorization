@@ -40,7 +40,7 @@
 static bool resourceTokensEnabled_ = false;
 static bool userTokensEnabled_ = false;
 static bool enableAuditLogs_ = false;
-static std::unique_ptr<OrthancPlugins::IAuthorizationParser> authorizationParser_;
+static std::unique_ptr<OrthancPlugins::AuthorizationParserBase> authorizationParser_;
 static std::unique_ptr<OrthancPlugins::IAuthorizationService> authorizationService_;
 static std::unique_ptr<OrthancPlugins::PermissionParser> permissionParser_;
 static std::set<std::string> uncheckedResources_;
@@ -1021,6 +1021,67 @@ void FilterLabelsInResourceArray(Json::Value& resources, const OrthancPlugins::I
 }
 
 
+void CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, const OrthancPluginHttpRequest* request)
+{
+  // make sur the user has access to all resources listed in "Resources" (with potentialy a "Level" field to help identify the resources)
+
+  OrthancPlugins::IAuthorizationService::UserProfile profile;
+  if (!GetUserProfileInternal(profile, request))
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to check if the user has access to all Resources in the payload - no user profile found");
+  }
+
+  if (HasAccessToAllLabels(profile))  // these guys can do whatever they want
+  {
+    return;
+  }
+
+  Json::Value payload;
+  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources") || !payload["Resources"].isArray())
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload with a 'Resources' field was expected");
+  }
+
+  Orthanc::ResourceType levelInPayload = Orthanc::ResourceType_Instance; // random value
+  bool hasLevelInPayload = payload.isMember("Level") && payload["Level"].isString();
+  
+  if (hasLevelInPayload)
+  {
+    levelInPayload = Orthanc::StringToResourceType(payload["Level"].asString().c_str());
+  }
+  
+  std::map<std::string, Orthanc::ResourceType> resources;
+
+  for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
+  {
+    std::string resourceId = payload["Resources"][i].asString();
+
+    OrthancPlugins::IAuthorizationParser::AccessedResources accessedResources;
+
+    if (hasLevelInPayload)
+    {
+      authorizationParser_->AddOrthancResource(accessedResources, levelInPayload, resourceId);
+    }
+    else
+    {
+      authorizationParser_->AddOrthancUnknownResource(accessedResources, resourceId);
+    }
+
+    bool granted = false;
+
+    if (!HasAuthorizedLabelsForResource(granted, accessedResources, profile))
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: Unable to check resource access based on the authorized_labels.");
+    }
+
+    if (!granted)
+    {
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: the user does not have access to resource " + resourceId);
+    }
+  }
+}
+
+
 void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
                                const char* /*url*/,
                                const OrthancPluginHttpRequest* request,
@@ -1653,6 +1714,7 @@ void DeleteResourceWithAuditLogs(OrthancPluginRestOutput* output,
 }
 
 
+template <bool enableAudiLogs>
 void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
                              const char* url,
                              const OrthancPluginHttpRequest* request)
@@ -1670,13 +1732,18 @@ void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
     throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
   }
 
+  CheckHasAccessToAllResourcesInPayload(output, request);
+
   std::list<AuditLog> auditLogs;
 
-  for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
+  if (enableAudiLogs)
   {
-    std::string resourceId = payload["Resources"][i].asString();
-    OrthancPluginResourceType resourceType = IdentifyResourceType(resourceId);
-    GetResourceDeletionAuditLogs(auditLogs, resourceType, resourceId, request);
+    for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
+    {
+      std::string resourceId = payload["Resources"][i].asString();
+      OrthancPluginResourceType resourceType = IdentifyResourceType(resourceId);
+      GetResourceDeletionAuditLogs(auditLogs, resourceType, resourceId, request);
+    }
   }
 
   OrthancPlugins::RestApiClient coreApi(url, request);
@@ -2496,7 +2563,7 @@ extern "C"
             OrthancPlugins::RegisterRestCallback<AnonymizeWithAuditLogs>("/(patients|studies|series)/([^/]*)/anonymize", true);
             OrthancPlugins::RegisterRestCallback<ModifyWithAuditLogs>("/(patients|studies|series)/([^/]*)/modify", true);
             OrthancPlugins::RegisterRestCallback<LabelWithAuditLogs>("/(patients|studies|series)/([^/]*)/labels/([^/]*)", true);
-            OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs>("/tools/bulk-delete", true);
+            OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs<true> >("/tools/bulk-delete", true);
             OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-modify", true);
             OrthancPlugins::RegisterRestCallback<BulkModifyAnonymizeWithAuditLogs>("/tools/bulk-anonymize", true);
             OrthancPlugins::RegisterRestCallback<GetAuditLogs>("/auth/audit-logs", true);
@@ -2509,6 +2576,10 @@ extern "C"
             // /archive + create-archive
             // /media + create-media + create-media-extended
 
+          }
+          else
+          {
+            OrthancPlugins::RegisterRestCallback<BulkDeleteWithAuditLogs<false> >("/tools/bulk-delete", true);
           }
         }
 

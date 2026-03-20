@@ -69,6 +69,29 @@ namespace OrthancPlugins
     throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
   }
 
+  void AuthorizationParserBase::AddOrthancResource(AccessedResources& target,
+                                                   Orthanc::ResourceType type,
+                                                   const std::string& orthancId)
+  {
+    switch (type)
+    {
+      case Orthanc::ResourceType_Instance:
+        AddOrthancInstance(target, orthancId);
+        break;
+      case Orthanc::ResourceType_Series:
+        AddOrthancSeries(target, orthancId);
+        break;
+      case Orthanc::ResourceType_Study:
+        AddOrthancStudy(target, orthancId);
+        break;
+      case Orthanc::ResourceType_Patient:
+        AddOrthancPatient(target, orthancId);
+        break;
+      default:
+        throw Orthanc::OrthancException(Orthanc::ErrorCode_InternalError);
+    }
+  }
+
 
   void AuthorizationParserBase::AddOrthancInstance(AccessedResources& target,
                                                    const std::string& orthancId)

@@ -55,9 +55,6 @@ namespace OrthancPlugins
     void AddOrthancPatient(AccessedResources& target,
                            const std::string& orthancId);
 
-    Orthanc::ResourceType AddOrthancUnknownResource(AccessedResources& target,
-                                                    const std::string& orthancId);
-
     void AddDicomPatient(AccessedResources& target,
                          const std::string& patientId);
 
@@ -71,6 +68,13 @@ namespace OrthancPlugins
                           const std::string& instanceDicomUid);
 
   public:
+    Orthanc::ResourceType AddOrthancUnknownResource(AccessedResources& target,
+                                                    const std::string& orthancId);
+
+    void AddOrthancResource(AccessedResources& target,
+                            Orthanc::ResourceType type,
+                            const std::string& orthancId);
+
     virtual void AddDicomStudy(AccessedResources& target,
                                const std::string& studyDicomUid) ORTHANC_OVERRIDE;
 
