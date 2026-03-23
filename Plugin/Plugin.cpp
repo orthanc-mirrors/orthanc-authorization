@@ -1130,23 +1130,36 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
 
           if (!HasAccessToAllLabels(profile)) // no need to adjust anything if the user has access to all labels
           {
-            if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
-            {
-              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Series or Instance level when the user does not have access to ALL labels or when there is no StudyInstanceUID in the query.");
-            }
-
-            // since this is a series/instance find, make sure the user has access to the parent study
-            std::vector<std::string> studyOrthancIds;
-            GetStudyOrthancIdFromStudyInstanceUID(studyOrthancIds, studyInstanceUID);
-
-            if (studyOrthancIds.size() != 1)
-            {
-              throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
-            }
-
             bool granted = false;
             OrthancPlugins::IAuthorizationParser::AccessedResources accessedResources;
-            authorizationParser_->AddDicomStudy(accessedResources, studyInstanceUID);
+
+            if (query.isMember("ParentStudy") && query["ParentStudy"].isString())
+            {
+              authorizationParser_->AddOrthancResource(accessedResources, Orthanc::ResourceType_Study, query["ParentStudy"].asString());
+            }
+            else if (query.isMember("ParentSeries") && query["ParentSeries"].isString())
+            {
+              authorizationParser_->AddOrthancResource(accessedResources, Orthanc::ResourceType_Series, query["ParentSeries"].asString());
+            }
+            else
+            { // try to get the StudyInstanceUID from the Query
+
+              if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
+              {
+                throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: unable to call tools/find at Series or Instance level when the user does not have access to ALL labels or when there is no StudyInstanceUID in the query.");
+              }
+
+              // since this is a series/instance find, make sure the user has access to the parent study
+              std::vector<std::string> studyOrthancIds;
+              GetStudyOrthancIdFromStudyInstanceUID(studyOrthancIds, studyInstanceUID);
+
+              if (studyOrthancIds.size() != 1)
+              {
+                throw Orthanc::OrthancException(Orthanc::ErrorCode_ForbiddenAccess, "Auth plugin: when using tools/find at Series or Instance level, unable to get the orthanc ID of StudyInstanceUID specified in the query. Found " + boost::lexical_cast<std::string>(studyOrthancIds.size()) + " orthanc studies with this StudyInstanceUID");          
+              }
+
+              authorizationParser_->AddDicomStudy(accessedResources, studyInstanceUID);
+            }
 
             if (!HasAuthorizedLabelsForResource(granted, accessedResources, profile))
             {

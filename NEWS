@@ -6,7 +6,7 @@ Pending changes in the mainline
 * Added support for /tools/bulk-modify and /tools/bulk-anonymize
 * Fix: in /tools/bulk-delete, a user was able to delete resources
   he does not have access to.
-
+* Fix: in /tools/find, "ParentSeries" and "ParentStudy" fields were ignored.
 
 2025-11-20 - v 0.10.3
 =====================
