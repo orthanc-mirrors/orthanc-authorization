@@ -527,7 +527,6 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
     bool hasUserRequiredPermissions = false;
-    std::string userId;
 
     if (permissionParser_.get() != NULL &&
       authorizationService_.get() != NULL) 
@@ -536,6 +535,8 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
       std::string matchedPattern;
       if (permissionParser_->Parse(requiredPermissions, matchedPattern, method, uri))
       {
+        std::string userId;
+
         if (authTokens.empty())
         {
           std::string msg = std::string("Testing whether anonymous user has any of the required permissions '") + JoinStrings(requiredPermissions) + "' required to match '" + matchedPattern + "'";
@@ -1124,8 +1125,6 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
         }
         else if (queryLevel == Orthanc::ResourceType_Series || queryLevel == Orthanc::ResourceType_Instance)
         {
-          std::string studyInstanceUID;
-
           if (!HasAccessToAllLabels(profile)) // no need to adjust anything if the user has access to all labels
           {
             bool granted = false;
@@ -1141,6 +1140,7 @@ void ToolsFindOrCountResources(OrthancPluginRestOutput* output,
             }
             else
             { // try to get the StudyInstanceUID from the Query
+              std::string studyInstanceUID;
 
               if (!GetStudyInstanceUIDFromQuery(studyInstanceUID, query))
               {
@@ -2315,7 +2315,7 @@ extern "C"
         std::string dicomWebRoot = "/dicom-web/";
         std::string oe2Root = "/ui/";
 
-        bool hasBasicAuthEnabled = orthancFullConfiguration.GetBooleanValue("AuthenticationEnabled", "true");
+        bool hasBasicAuthEnabled = orthancFullConfiguration.GetBooleanValue("AuthenticationEnabled", true);
 
         if (orthancFullConfiguration.IsSection("DicomWeb"))
         {

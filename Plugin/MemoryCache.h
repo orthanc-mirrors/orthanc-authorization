@@ -64,7 +64,7 @@ namespace OrthancPlugins
   public:
     explicit MemoryCache(unsigned int maxSize);
     
-    ~MemoryCache();
+    ~MemoryCache() ORTHANC_OVERRIDE;
 
     virtual void Invalidate(const std::string& key) ORTHANC_OVERRIDE;
 

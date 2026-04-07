@@ -41,7 +41,8 @@ namespace OrthancPlugins
 
   public:
     OrthancResource() :
-      isValid_(false)
+      isValid_(false),
+      level_(Orthanc::ResourceType_Instance) // dummy initialization
     {
     }
     

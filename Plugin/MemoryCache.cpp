@@ -101,9 +101,16 @@ namespace OrthancPlugins
     
   MemoryCache::~MemoryCache()
   {
-    while (!index_.IsEmpty())
+    try
     {
-      RemoveOldest();
+      while (!index_.IsEmpty())
+      {
+        RemoveOldest();
+      }
+    }
+    catch (Orthanc::OrthancException&)
+    {
+      // Destructors cannot throw exceptions
     }
   }
     

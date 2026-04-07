@@ -39,7 +39,7 @@ namespace OrthancPlugins
         Orthanc::Toolbox::ToLowerCase(key, headersKeys[i]);
       }
         
-      map_[headersKeys[i]] = headersValues[i];
+      map_[key] = headersValues[i];
     }
   }
 

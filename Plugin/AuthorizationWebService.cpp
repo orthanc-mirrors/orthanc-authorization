@@ -252,7 +252,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }
@@ -341,7 +341,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }
@@ -451,7 +451,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }
@@ -519,7 +519,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }
@@ -565,7 +565,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }
@@ -604,7 +604,7 @@ namespace OrthancPlugins
 
       return true;
     }
-    catch (Orthanc::OrthancException& ex)
+    catch (const Orthanc::OrthancException& ex)
     {
       return false;
     }

@@ -48,10 +48,6 @@ namespace OrthancPlugins
                                            const UserProfile& profile) = 0;
 
   public:
-    virtual ~BaseAuthorizationService()
-    {
-    }
-    
     virtual bool IsGranted(unsigned int& validity,
                            OrthancPluginHttpMethod method,
                            const AccessedResource& access,
