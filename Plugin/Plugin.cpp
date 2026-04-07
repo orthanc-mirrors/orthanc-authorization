@@ -1050,8 +1050,6 @@ bool CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, cons
     levelInPayload = Orthanc::StringToResourceType(payload["Level"].asString().c_str());
   }
   
-  std::map<std::string, Orthanc::ResourceType> resources;
-
   for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
   {
     std::string resourceId = payload["Resources"][i].asString();
