@@ -179,28 +179,28 @@ namespace OrthancPlugins
     {
       std::string studyInstanceUid, seriesInstanceUid, sopInstanceUid, patientId;
 
-      studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000D", "");
+      studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000d", ""); // 002000D in the url but the getArguments are normalized in lower case
       if (studyInstanceUid.empty())
       {
-        studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "StudyInstanceUID", "");
+        studyInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "studyinstanceuid", ""); //StudyInstanceUID in the url but the getArguments are normalized in lower case
       }
 
-      seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000E", "");
+      seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "0020000e", ""); // 002000E in the url but the getArguments are normalized in lower case
       if (seriesInstanceUid.empty())
       {
-        seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "SeriesInstanceUID", "");
+        seriesInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "seriesinstanceuid", "");
       }
 
       sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "00080018", "");
       if (sopInstanceUid.empty())
       {
-        sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "SOPInstanceUID", "");
+        sopInstanceUid = Orthanc::HttpToolbox::GetArgument(getArguments, "sopinstanceuid", "");
       }
 
       patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "00100020", "");
       if (patientId.empty())
       {
-        patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "PatientID", "");
+        patientId = Orthanc::HttpToolbox::GetArgument(getArguments, "patientid", "");
       }
 
       if (!sopInstanceUid.empty() && sopInstanceUid.find('*') != std::string::npos)
