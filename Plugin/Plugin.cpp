@@ -522,7 +522,7 @@ static int32_t FilterHttpRequests(OrthancPluginHttpMethod method,
     std::vector<TokenAndValue> authTokens;  // the tokens that are set in this request
     GetAuthTokens(authTokens, headersCount, headersKeys, headersValues, getArgumentsCount, getArgumentsKeys, getArgumentsValues);
 
-    OrthancPlugins::AssociativeArray getArguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, true);
+    OrthancPlugins::AssociativeArray getAprguments(getArgumentsCount, getArgumentsKeys, getArgumentsValues, false);
 
     // Based on the tokens, check if the user has access based on its permissions and the mapping between urls and permissions
     ////////////////////////////////////////////////////////////////
