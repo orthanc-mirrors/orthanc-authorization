@@ -97,8 +97,8 @@
             ["post", "^/stl/encode-rtstruct$", "all|upload"],
             ["post", "^/stl/encode-nifti$", "all|upload"],
 
-            // monitor jobs you have created
-            ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities"],
+            // monitor a single job when you know its id (e.g: a job you have created)
+            ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities|admin-permissions"],
 
             // interacting with peers/modalities/dicomweb
             ["post", "^/(peers|modalities)/(.*)/(store|store-straight)$", "all|send"],
@@ -150,7 +150,12 @@
             // create-edit-delete worklists 
             ["post" , "^/worklists/create$", "all|worklists"],
             ["put", "^/worklists/(.*)$", "all|worklists"],
-            ["delete" , "^/worklists/(.*)$", "all|worklists"]
+            ["delete" , "^/worklists/(.*)$", "all|worklists"],
+
+            // all jobs page
+            ["get", "^/jobs$", "admin-permissions"],
+            ["post", "^/jobs/([a-f0-9-]+)/(pause|resume|resubmit|cancel)$", "admin-permissions"],
+            ["delete", "^/jobs/([a-f0-9-]+)$", "admin-permissions"]
         ]
 
         // If you just need to add a few permissions, while preserving the default ones,
