@@ -38,35 +38,34 @@ namespace OrthancPlugins
   }
     
 
-  Orthanc::ResourceType AuthorizationParserBase::AddOrthancUnknownResource(AccessedResources& target,
-                                                                           const std::string& orthancId)
+  bool AuthorizationParserBase::LookupOrthancUnknownResourceLevel(Orthanc::ResourceType& level, const std::string& orthancId)
   {
     std::string dicomId;
     if (resourceHierarchy_->LookupDicomUid(dicomId, Orthanc::ResourceType_Study, orthancId))
     {
-      AddOrthancStudy(target, orthancId);
-      return Orthanc::ResourceType_Study;
+      level = Orthanc::ResourceType_Study;
+      return true;
     }
 
     if (resourceHierarchy_->LookupDicomUid(dicomId, Orthanc::ResourceType_Patient, orthancId))
     {
-      AddOrthancPatient(target, orthancId);
-      return Orthanc::ResourceType_Patient;
+      level = Orthanc::ResourceType_Patient;
+      return true;
     }
 
     if (resourceHierarchy_->LookupDicomUid(dicomId, Orthanc::ResourceType_Series, orthancId))
     {
-      AddOrthancSeries(target, orthancId);
-      return Orthanc::ResourceType_Series;
+      level = Orthanc::ResourceType_Series;
+      return true;
     }
 
     if (resourceHierarchy_->LookupDicomUid(dicomId, Orthanc::ResourceType_Instance, orthancId))
     {
-      AddOrthancInstance(target, orthancId);
-      return Orthanc::ResourceType_Instance;
+      level = Orthanc::ResourceType_Instance;
+      return true;
     }
 
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource);
+    return false;
   }
 
   void AuthorizationParserBase::AddOrthancResource(AccessedResources& target,

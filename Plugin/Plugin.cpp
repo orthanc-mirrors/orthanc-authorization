@@ -94,6 +94,27 @@ static void MergeJson(Json::Value &a,
   }
 }
 
+OrthancPluginResourceType Convert(Orthanc::ResourceType type)
+{
+  switch (type)
+  {
+    case Orthanc::ResourceType_Patient:
+      return OrthancPluginResourceType_Patient;
+
+    case Orthanc::ResourceType_Study:
+      return OrthancPluginResourceType_Study;
+
+    case Orthanc::ResourceType_Series:
+      return OrthancPluginResourceType_Series;
+
+    case Orthanc::ResourceType_Instance:
+      return OrthancPluginResourceType_Instance;
+
+    default:
+      throw Orthanc::OrthancException(Orthanc::ErrorCode_ParameterOutOfRange);
+  }
+}
+
 
 static const char* KEY_USER_DATA = "UserData";
 static const char* KEY_USER_ID = "AuditLogsUserId";
@@ -1021,8 +1042,66 @@ void FilterLabelsInResourceArray(Json::Value& resources, const OrthancPlugins::I
   }
 }
 
+static const char* const KEY_RESOURCES = "Resources";
+static const char* const KEY_LEVEL = "Level";
+static const char* const KEY_ID = "ID";
 
-bool CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, const OrthancPluginHttpRequest* request)
+void GetResourcesList(std::map<std::string, Orthanc::ResourceType>& resources, Json::Value parsedPayload, const OrthancPluginHttpRequest* request)
+{
+  if (!OrthancPlugins::ReadJson(parsedPayload, request->body, request->bodySize) || !parsedPayload.isMember(KEY_RESOURCES) || !parsedPayload[KEY_RESOURCES].isArray())
+  {
+    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload with a 'Resources' string array field was expected");
+  }
+
+  Orthanc::ResourceType levelInRootPayload = Orthanc::ResourceType_Instance; // random value
+  bool hasLevelAtRootInPayload = parsedPayload.isMember(KEY_LEVEL) && parsedPayload[KEY_LEVEL].isString();
+  
+  if (hasLevelAtRootInPayload)
+  {
+    levelInRootPayload = Orthanc::StringToResourceType(parsedPayload[KEY_LEVEL].asString().c_str());
+  }
+  
+  for (Json::ArrayIndex i = 0; i < parsedPayload[KEY_RESOURCES].size(); ++i)
+  {
+    OrthancPlugins::IAuthorizationParser::AccessedResources accessedResources;
+
+    const Json::Value& resource = parsedPayload[KEY_RESOURCES][i];
+    std::string resourceId;
+
+    if (resource.isString())
+    {
+      resourceId = parsedPayload[KEY_RESOURCES][i].asString();
+
+      if (hasLevelAtRootInPayload)
+      {
+        resources[resourceId] = levelInRootPayload;
+      }
+      else
+      {
+        Orthanc::ResourceType level;
+        if (authorizationParser_->LookupOrthancUnknownResourceLevel(level, resourceId))
+        {
+          resources[resourceId] = level;
+        }
+        else
+        {
+          throw Orthanc::OrthancException(Orthanc::ErrorCode_UnknownResource, std::string("resource ID: ") + resourceId);
+        }
+      }
+    }
+    else if (resource.isObject() && resource.isMember(KEY_ID) && resource[KEY_ID].isString()
+          && resource.isMember(KEY_LEVEL) && resource[KEY_LEVEL].isString())
+    {
+      Orthanc::ResourceType level = Orthanc::StringToResourceType(resource[KEY_LEVEL].asString().c_str());
+      
+      resourceId = resource[KEY_ID].asString();
+      resources[resourceId] = level;
+    }
+  }
+}
+
+
+bool CheckHasAccessToAllResourcesInPayload(const std::map<std::string, Orthanc::ResourceType>& resources, OrthancPluginRestOutput* output, const OrthancPluginHttpRequest* request)
 {
   // make sur the user has access to all resources listed in "Resources" (with potentialy a "Level" field to help identify the resources)
 
@@ -1037,34 +1116,11 @@ bool CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, cons
     return true;
   }
 
-  Json::Value payload;
-  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources") || !payload["Resources"].isArray())
+  for (std::map<std::string, Orthanc::ResourceType>::const_iterator it = resources.begin(); it != resources.end(); ++it)
   {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload with a 'Resources' string array field was expected");
-  }
-
-  Orthanc::ResourceType levelInPayload = Orthanc::ResourceType_Instance; // random value
-  bool hasLevelInPayload = payload.isMember("Level") && payload["Level"].isString();
-  
-  if (hasLevelInPayload)
-  {
-    levelInPayload = Orthanc::StringToResourceType(payload["Level"].asString().c_str());
-  }
-  
-  for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
-  {
-    std::string resourceId = payload["Resources"][i].asString();
-
     OrthancPlugins::IAuthorizationParser::AccessedResources accessedResources;
 
-    if (hasLevelInPayload)
-    {
-      authorizationParser_->AddOrthancResource(accessedResources, levelInPayload, resourceId);
-    }
-    else
-    {
-      authorizationParser_->AddOrthancUnknownResource(accessedResources, resourceId);
-    }
+    authorizationParser_->AddOrthancResource(accessedResources, it->second, it->first);
 
     bool granted = false;
 
@@ -1075,7 +1131,7 @@ bool CheckHasAccessToAllResourcesInPayload(OrthancPluginRestOutput* output, cons
 
     if (!granted)
     {
-      LOG(WARNING) << "Auth plugin: the user does not have access to resource " << resourceId;
+      LOG(WARNING) << "Auth plugin: the user does not have access to resource " << it->first;
       OrthancPlugins::AnswerHttpError(Orthanc::HttpStatus_403_Forbidden, output);
       return false;
     }
@@ -1428,12 +1484,11 @@ void BulkModifyAnonymizeWithAuditLogs(OrthancPluginRestOutput* output,
   }
 
   Json::Value payload;
-  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources"))
-  {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
-  }
+  std::map<std::string, Orthanc::ResourceType> resources;
+  
+  GetResourcesList(resources, payload, request);
 
-  if (!CheckHasAccessToAllResourcesInPayload(output, request))
+  if (!CheckHasAccessToAllResourcesInPayload(resources, output, request))
   {
     return;
   }
@@ -1682,30 +1737,6 @@ void GetAuditLogs(OrthancPluginRestOutput* output,
 }
 
 
-OrthancPluginResourceType IdentifyResourceType(const std::string& resourceId)
-{
-  Json::Value v;
-
-  if (OrthancPlugins::RestApiGet(v, "/studies/" + resourceId, false))
-  {
-    return OrthancPluginResourceType_Study;
-  }
-  if (OrthancPlugins::RestApiGet(v, "/patients/" + resourceId, false))
-  {
-    return OrthancPluginResourceType_Patient;
-  }
-  if (OrthancPlugins::RestApiGet(v, "/series/" + resourceId, false))
-  {
-    return OrthancPluginResourceType_Series;
-  }
-  if (OrthancPlugins::RestApiGet(v, "/instances/" + resourceId, false))
-  {
-    return OrthancPluginResourceType_Instance;
-  }
-
-  return OrthancPluginResourceType_None;
-}
-
 
 void GetResourceDeletionAuditLogs(std::list<AuditLog>& auditLogs,
                                   OrthancPluginResourceType resourceType,
@@ -1812,12 +1843,11 @@ void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
   }
 
   Json::Value payload;
-  if (!OrthancPlugins::ReadJson(payload, request->body, request->bodySize) || !payload.isMember("Resources"))
-  {
-    throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
-  }
+  std::map<std::string, Orthanc::ResourceType> resources;
+  
+  GetResourcesList(resources, payload, request);
 
-  if (!CheckHasAccessToAllResourcesInPayload(output, request))
+  if (!CheckHasAccessToAllResourcesInPayload(resources, output, request))
   {
     return;
   }
@@ -1826,11 +1856,9 @@ void BulkDeleteWithAuditLogs(OrthancPluginRestOutput* output,
 
   if (enableAudiLogs)
   {
-    for (Json::ArrayIndex i = 0; i < payload["Resources"].size(); ++i)
+    for (std::map<std::string, Orthanc::ResourceType>::const_iterator it = resources.begin(); it != resources.end(); ++it)
     {
-      std::string resourceId = payload["Resources"][i].asString();
-      OrthancPluginResourceType resourceType = IdentifyResourceType(resourceId);
-      GetResourceDeletionAuditLogs(auditLogs, resourceType, resourceId, request);
+      GetResourceDeletionAuditLogs(auditLogs, Convert(it->second), it->first, request);
     }
   }
 

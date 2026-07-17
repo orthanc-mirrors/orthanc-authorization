@@ -68,8 +68,7 @@ namespace OrthancPlugins
                           const std::string& instanceDicomUid);
 
   public:
-    Orthanc::ResourceType AddOrthancUnknownResource(AccessedResources& target,
-                                                    const std::string& orthancId);
+    bool LookupOrthancUnknownResourceLevel(Orthanc::ResourceType& level, const std::string& orthancId);
 
     void AddOrthancResource(AccessedResources& target,
                             Orthanc::ResourceType type,

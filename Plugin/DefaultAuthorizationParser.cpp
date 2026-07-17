@@ -170,7 +170,11 @@ namespace OrthancPlugins
 
       for (std::set<std::string>::const_iterator it = resourcesIds.begin(); it != resourcesIds.end(); ++it)
       {
-        AddOrthancUnknownResource(target, *it);
+        Orthanc::ResourceType level;
+        if (LookupOrthancUnknownResourceLevel(level, *it))
+        {
+          AddOrthancResource(target, level, *it);
+        }
       }
       
       return true;
