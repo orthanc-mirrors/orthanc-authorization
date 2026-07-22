@@ -2,6 +2,8 @@ Pending changes in the mainline
 ===============================
 
 * Support new /tools/bulk-delete payload
+* New default permissions for DICOMWeb /qido & /retrieve routes.
+
 
 2026-04-23 - v 0.11.3
 =====================
