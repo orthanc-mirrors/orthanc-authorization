@@ -2043,7 +2043,7 @@ void CreateToken(OrthancPluginRestOutput* output,
       throw Orthanc::OrthancException(Orthanc::ErrorCode_BadFileFormat, "A JSON payload was expected");
     }
 
-    std::string id;
+    std::string id, username;
     std::vector<OrthancPlugins::IAuthorizationService::OrthancResource> resources;
     std::string expirationDateString;
     uint64_t validityDuration;
@@ -2051,6 +2051,11 @@ void CreateToken(OrthancPluginRestOutput* output,
     if (body.isMember("ID"))
     {
       id = body["ID"].asString();
+    }
+
+    if (body.isMember("Username"))
+    {
+      username = body["Username"].asString();
     }
 
     for (Json::ArrayIndex i = 0; i < body["Resources"].size(); ++i)
@@ -2091,6 +2096,7 @@ void CreateToken(OrthancPluginRestOutput* output,
     if (authorizationService_->CreateToken(createdToken,
                                            tokenType,
                                            id,
+                                           username,
                                            resources,
                                            expirationDateString,
                                            validityDuration))

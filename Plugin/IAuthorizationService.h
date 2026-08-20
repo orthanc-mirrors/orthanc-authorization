@@ -40,6 +40,7 @@ namespace OrthancPlugins
       std::string orthancId;
       std::string url;
       std::string level;
+      std::string username;
     };
 
     struct CreatedToken
@@ -103,7 +104,8 @@ namespace OrthancPlugins
 
     virtual bool CreateToken(CreatedToken& response,
                              const std::string& tokenType, 
-                             const std::string& id, 
+                             const std::string& id,
+                             const std::string& username, 
                              const std::vector<OrthancResource>& resources,
                              const std::string& expirationDateString,
                              const uint64_t& validityDuration) = 0;

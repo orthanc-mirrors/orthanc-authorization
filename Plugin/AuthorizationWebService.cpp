@@ -261,7 +261,8 @@ namespace OrthancPlugins
 
   bool AuthorizationWebService::CreateToken(IAuthorizationService::CreatedToken& response,
                                             const std::string& tokenType, 
-                                            const std::string& id, 
+                                            const std::string& id,
+                                            const std::string& username, 
                                             const std::vector<IAuthorizationService::OrthancResource>& resources,
                                             const std::string& expirationDateString,
                                             const uint64_t& validityDuration)
@@ -277,6 +278,11 @@ namespace OrthancPlugins
     if (!id.empty())
     {
       body["id"] = id;
+    }
+
+    if (!username.empty())
+    {
+      body["username"] = username;
     }
 
     AddServerId(body, serverId_);

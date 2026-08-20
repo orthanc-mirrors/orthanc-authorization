@@ -93,7 +93,8 @@ namespace OrthancPlugins
 
     virtual bool CreateToken(IAuthorizationService::CreatedToken& response,
                              const std::string& tokenType, 
-                             const std::string& id, 
+                             const std::string& id,
+                             const std::string& username, 
                              const std::vector<IAuthorizationService::OrthancResource>& resources,
                              const std::string& expirationDateString,
                              const uint64_t& validityDuration) ORTHANC_OVERRIDE;
