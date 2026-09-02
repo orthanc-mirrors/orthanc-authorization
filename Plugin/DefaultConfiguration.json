@@ -159,12 +159,17 @@
             ["get", "^/jobs$", "admin-permissions"],
             ["post", "^/jobs/([a-f0-9-]+)/(pause|resume|resubmit|cancel)$", "admin-permissions"],
             ["delete", "^/jobs/([a-f0-9-]+)$", "admin-permissions"]
-        ]
+        ],
 
         // If you just need to add a few permissions, while preserving the default ones,
         // You may just not specify any "Permissions" field and add a few entries in the ExtraPermissions
         // "ExtraPermissions" : [
         //     ["post", "^/my-plugin/do-something$", "all|upload"]
         // ]
+
+        // Experimental feature to log some of the actions performed by a logged-in user.
+        // Requires a DB plugin that implements audi-logs (PostgreSQL only).
+        // New in v0.10.0.
+        "EnableAuditLogs": false
     }
 }
