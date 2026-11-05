@@ -99,7 +99,7 @@
             ["post", "^/stl/encode-nifti$", "all|upload"],
 
             // monitor a single job when you know its id (e.g: a job you have created)
-            ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities|admin-permissions"],
+            ["get" , "^/jobs/([a-f0-9-]+)$", "all|send|modify|anonymize|q-r-remote-modalities|admin-permissions|view-jobs"],
 
             // interacting with peers/modalities/dicomweb
             ["post", "^/(peers|modalities)/(.*)/(store|store-straight)$", "all|send"],
@@ -156,7 +156,7 @@
             ["delete" , "^/worklists/(.*)$", "all|worklists"],
 
             // all jobs page
-            ["get", "^/jobs$", "admin-permissions"],
+            ["get", "^/jobs$", "admin-permissions|view-jobs"],
             ["post", "^/jobs/([a-f0-9-]+)/(pause|resume|resubmit|cancel)$", "admin-permissions"],
             ["delete", "^/jobs/([a-f0-9-]+)$", "admin-permissions"]
         ],
